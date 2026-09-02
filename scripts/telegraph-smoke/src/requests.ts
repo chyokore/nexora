@@ -16,7 +16,7 @@ export function buildRequest(intent: Intent, miner: Miner): Record<string, strin
   }
   if (intent === "URL_SCAN") {
     if (!("url" in properties)) throw new Error("Selected URL schema does not accept url");
-    return { url: "https://example.com" };
+    return { url: "https://example.com/" };
   }
 
   const request: Record<string, string | number> = {};

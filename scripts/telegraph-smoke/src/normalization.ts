@@ -18,6 +18,16 @@ export function normalizeEvidence(intent: Intent, selection: Selection, value: u
     if (record.risk_tier === "insufficient_data") base.uncertainty.push("insufficient_data");
     return { ...base, intent, ...(confidence === undefined ? {} : { confidence }), ...(label === undefined ? {} : { label }), ...(reason === undefined ? {} : { reason }) };
   }
-  if (intent === "URL_SCAN") return { ...base, intent, ...(confidence === undefined ? {} : { confidence }), ...(verdict === undefined ? {} : { verdict }), ...(typeof record.reachable === "boolean" ? { reachable: record.reachable } : {}) };
+  if (intent === "URL_SCAN") {
+    const urlVerdict = verdict ?? optionalString(record.risk);
+    const queriedUrl = optionalString(record.url), riskScore = optionalNumber(record.risk_score), summary = optionalString(record.summary);
+    const threatIndicators = Array.isArray(record.listings) || Array.isArray(record.host_listings) ? [...(Array.isArray(record.listings) ? record.listings : []), ...(Array.isArray(record.host_listings) ? record.host_listings : [])] : undefined;
+    const sources = Array.isArray(record.feeds_checked) ? record.feeds_checked : optionalString(record.source);
+    const scanStatus = typeof record.status_code === "number" || typeof record.status_code === "string" ? record.status_code : undefined;
+    if (queriedUrl === undefined) base.unavailableFields.push("queriedUrl");
+    if (urlVerdict === undefined) base.unavailableFields.push("verdict");
+    if (threatIndicators === undefined) base.unavailableFields.push("threatIndicators");
+    return { ...base, intent, ...(confidence === undefined ? {} : { confidence }), ...(queriedUrl === undefined ? {} : { queriedUrl }), ...(urlVerdict === undefined ? {} : { verdict: urlVerdict }), ...(typeof record.safe === "boolean" ? { safe: record.safe } : {}), ...(typeof record.reachable === "boolean" ? { reachable: record.reachable } : {}), ...(riskScore === undefined ? {} : { riskScore }), ...(threatIndicators === undefined ? {} : { threatIndicators }), ...(sources === undefined ? {} : { sources }), ...(scanStatus === undefined ? {} : { scanStatus }), ...(summary === undefined ? {} : { summary }) };
+  }
   return { ...base, intent, ...(confidence === undefined ? {} : { confidence }), ...(transactionStatus === undefined ? {} : { transactionStatus }), ...(typeof record.block_number === "number" ? { blockNumber: record.block_number } : {}) };
 }

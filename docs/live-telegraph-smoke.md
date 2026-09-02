@@ -33,3 +33,16 @@ Timestamp: `2026-09-02T20:27:27.873Z`
 - **NORMALIZED:** `FraudEvidence` preserves label `out_of_coverage`, confidence 0, the supplied rationale, and uncertainty markers `coverage_incomplete`, `data_source_unavailable`, and `insufficient_data`. Response schema classification: `MATCH`.
 - **UNAVAILABLE:** No positive fraud classification or supported factual risk signal was returned for the off-chain synthetic scenario. No such claim is inferred.
 - **VERIFIED LIVE:** Exactly 1 logical paid operation, 1 paid retry, 1 authorization flow, 1 settlement, 0 direct Nexora blockchain writes, and 0.01 USDC reportable cost. Execution stopped after Call 1.
+
+## Phase 5C: single live URL_SCAN purchase
+
+Timestamp: `2026-09-02T20:38:12.635Z`
+
+- **VERIFIED LIVE:** Fresh discovery returned 129 registrations, 10 URL_SCAN miners, 11 endpoint-compatible endpoint candidates, 7 schema-compatible miners, and 7 finally eligible miners. Neutral selection chose NetWire URL Scan miner `7334`, rank 1, score `0.9499101`, using `GET /url-scan`; the endpoint description and `url` property support the exact harmless input `https://example.com/`.
+- **VERIFIED LIVE:** Logical call `url-smoke-001` completed HTTP negotiation `[402, 402, 200]` on `eip155:84532` with the approved USDC asset, amount 10,000 base units, and payee `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8`. Settlement metadata reported success.
+- **VERIFIED FROM BASE SEPOLIA:** Transaction `0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882` transferred 10,000 USDC base units to the challenge payee in block 46,306,603. Burner balance changed from 19.99 to 19.98 USDC.
+- **SUPPLIED BY MINER:** HTTP 200 JSON object reported the exact URL reachable over valid HTTPS/TLS with status 200, `safe: true`, `risk: low`, `risk_score: 0.1`, confidence `0.93`, empty URLhaus/OpenPhish listings, and explicit source/attribution metadata.
+- **NORMALIZED:** `UrlSafetyEvidence` preserves the queried URL, supplied low-risk verdict, safe flag, confidence, reachability, risk score, empty threat-indicator result, checked feeds, scan status, and summary. Response schema classification: `MATCH`.
+- **INFERRED:** Empty checked-feed listings mean those providers supplied no listing evidence at scan time; they are not a universal guarantee that the URL will remain safe.
+- **UNAVAILABLE:** No provider-independent guarantee, future-state assurance, or broader threat-feed coverage was supplied.
+- **VERIFIED LIVE:** Exactly 1 logical paid operation, 1 paid retry, 1 authorization flow, 1 settlement, 0 direct Nexora blockchain writes, and 0.01 USDC reportable cost. Execution stopped after URL_SCAN.
