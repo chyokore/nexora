@@ -740,3 +740,72 @@ Validation completed: strict TypeScript compilation and all 18 unit tests passed
 Manual setup remains the Phase 3A sequence: create a dedicated EVM burner outside source control, acquire limited Base Sepolia testnet USDC, set `TELEGRAPH_EVM_PRIVATE_KEY` only in a local secret facility, verify ignored-file behavior and the public address/balance, independently approve the live challenge asset, and request explicit authorization. A later engineering step must install/review the payment adapter and preserve one-run ledger state across the three executions.
 
 Recommendation: **STOP.** The dry-run harness is ready, but the final controlled three-call Phase 3 execution is not yet enabled or authorized.
+
+# PHASE 3C — SIGVORA REGISTRATION CORRECTION + FRAUD POOL REVALIDATION
+
+Phase 3C registry timestamp: 2026-09-02T16:26:39.8991297Z; complete fraud-pool recomputation timestamp: 2026-09-02T16:29:57.5662719Z. Scope: free discovery and documentation correction only. Paid inference calls: **0**; x402 challenges intentionally triggered: **0**; signatures: **0**; settlements: **0**; wallet operations: **0**.
+
+## P3C.1 Registration correction and conflicting evidence
+
+**PROJECT-OWNER CONFIRMED:** Sigvora Miner 251 is the old, deregistered registration. Sigvora Miner 315 is the current live registration.
+
+**EARLIER OBSERVATION — VERIFIED FROM FREE LIVE REGISTRY AT THE TIME:** Phases 2, 3, and 3A queried `GET http://13.237.89.59:7044/miner-dispatcher/integrations`; those dispatcher snapshots exposed a Sigvora record with ID 251, marked it active, and did not expose 315. Nexora incorrectly treated the visible 251 record as the current registration rather than distinguishing dispatcher visibility from authoritative registration status. Those historical observations remain preserved above and in the compatibility matrix.
+
+**PHASE 3C OBSERVATION — VERIFIED FROM FREE LIVE REGISTRY:** The same endpoint returned 129 records. It still contains exactly one Sigvora-named record: ID 251, slug `sigvora`, name `Sigvora Fraud Intelligence`, `activation_status: active`, FRAUD_DETECTION, `POST /analyze`, price 10,000 micro-USDC, input schema `null`, output schema `null`, scored `true`, epoch 302, rank 8, score 0, registered-at value `2026-08-29T21:17:05Z`, and base URL `https://sigvora-staging.onrender.com`. Miner 315 is absent. No field in this response marks 251 deregistered or historical.
+
+Therefore:
+
+- 251 status: **STALE ENTRY PRESENT / CONFLICTING DATA** — deregistration is **PROJECT-OWNER CONFIRMED**, while the dispatcher still reports it active.
+- 315 status: current Sigvora ID is **PROJECT-OWNER CONFIRMED**, but presence, active status, intent, method/path, schemas, price, score, rank, and other integration metadata are **UNVERIFIED** because 315 is absent from every reachable free catalog checked.
+- overall result: **CONFLICTING REGISTRY DATA**. Visibility is not treated as proof that 251 remains operational, and the owner's correction is not mislabeled as live-registry verification.
+
+## P3C.2 Cause investigation
+
+**VERIFIED FROM OFFICIAL SOURCE:** The current Telegraph MCP's `discoverSubnets()` and `tg_node_list_subnets` both fetch the exact dispatcher endpoint used by Nexora. The MCP refreshes that response every 300,000 ms by default, diffs generated tools, and removes a local dynamic tool when its integration disappears from a later response. It does not independently query an on-chain registry or filter/override records based on a deregistration flag. The official README says new miners appear within five minutes and deregistered miners are cleaned up.
+
+This explains why previous Nexora audits observed 251: they accurately recorded what the dispatcher returned, and the MCP would have consumed the same record. It does **not** explain why the dispatcher continues to expose 251 as active or omits 315. The inspected public MCP is a client and contains no dispatcher server/store implementation. No evidence proved whether the server response is cached, delayed, merged with history, or failing to propagate an on-chain change.
+
+Two other free routes named by current MCP source were checked: Node `GET /api/subnets/health` and Engine `GET /v1/subnets`. Both returned HTTP 404 on the configured public deployment. No more authoritative reachable free catalog was established. **CAUSE UNRESOLVED.**
+
+Official sources: [Telegraph MCP repository and refresh description](https://github.com/telegraphprotocol/telegraph-mcp), [MCP architecture](https://github.com/telegraphprotocol/telegraph-mcp/blob/main/docs/architecture.md), and the cloned current source files `src/discovery.ts`, `src/tools/node.ts`, `src/index.ts`, and `src/tools/subnets.ts`, inspected read-only outside Nexora.
+
+## P3C.3 Miner 315 compatibility
+
+No 315 record means its actual configuration cannot be inherited from 251 or invented:
+
+| Field | Phase 3C classification |
+|---|---|
+| current Sigvora miner ID | 315 — **PROJECT-OWNER CONFIRMED** |
+| exact intent | **UNVERIFIED** |
+| active status | **UNVERIFIED** |
+| input schema | **UNVERIFIED** (not present, null, malformed, or unsupported cannot be determined) |
+| output schema | **UNVERIFIED** |
+| method/path | **UNVERIFIED** |
+| advertised price | **UNVERIFIED** |
+| score/rank | **UNVERIFIED** |
+| query-family eligibility | **UNVERIFIED** |
+
+Consequently, 251's null-schema finding is not transferred to 315. Miner 315 cannot currently enter the harness selection pool because the registry supplied no record to evaluate; that is missing discovery evidence, not an ownership-based exclusion.
+
+## P3C.4 Complete fraud-pool recomputation
+
+**VERIFIED FROM FREE LIVE REGISTRY:** The fresh snapshot contained 15 FRAUD_DETECTION records and six eligible query-family miners under the unchanged rule: exact intent; active; non-null input/output schemas; declared string `query`; no required field other than `query`; positive integer price; then Telegraph rank, score, and stable ID tie-break.
+
+| Order | Miner | Rank | Score | Price (micro-USDC) |
+|---:|---|---:|---:|---:|
+| 1 | 49 Anchor | 1 | 1 | 10,000 |
+| 2 | 91001 SarzOps Fraud Intelligence | 2 | 1.1243167e-13 | 10,000 |
+| 3 | 302 ChainSight | 3 | 4.976477e-14 | 10,000 |
+| 4 | 10002 DegenLens | 4 | 3.8063296e-14 | 10,000 |
+| 5 | 9002 TxLens | 5 | 8.140558e-15 | 10,000 |
+| 6 | 94217603 Telegraph Sentinel | 6 | 7.252309e-15 | 10,000 |
+
+Anchor remains the neutral winner because it is eligible and has the best current Telegraph rank (1) and score (1). **VERIFIED FROM FREE LIVE REGISTRY.** Neither previous results nor ownership influenced the choice. Visible 251 fails the same non-null-schema criterion as every other schema-less record. Absent 315 cannot be evaluated or selected.
+
+## P3C.5 Harness revalidation and change decision
+
+The unchanged Phase 3B harness was run against fresh free discovery and again selected Anchor for FRAUD_DETECTION, NetWire for URL_SCAN, and Veyctum for ONCHAIN_TX_LOOKUP. **VERIFIED FROM FREE LIVE REGISTRY.** It contacted no miner endpoints.
+
+No selection defect was proven. The harness already rejects records not marked active and requires compatible non-null schemas. A deregistered record incorrectly labeled `active` by its sole discovery input cannot be generically identified without a trustworthy current-status field or second authoritative registry source. Adding an ID-, slug-, owner-, or Sigvora-specific override would violate the neutral rule. Therefore selection code and tests were not changed merely to manufacture a fix; no regression fixture was justified.
+
+Current blocker: obtain authoritative free runtime/on-chain evidence for registration 315 and removal of 251, or have Telegraph correct/refresh the dispatcher. Then rerun the unchanged neutral rule. Recommendation: **STOP before signer integration** while discovery presents conflicting registration state.

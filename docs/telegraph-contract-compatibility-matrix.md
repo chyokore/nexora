@@ -2,6 +2,8 @@
 
 Snapshot: 2026-09-02, Phase 2. Source: free `GET http://13.237.89.59:7044/miner-dispatcher/integrations`. **VERIFIED FROM LIVE REGISTRY.** No miner endpoint was called. `Active` below means registry activation only, not an end-to-end health result. Price is the registry's `min_price_usdc` in micro-USDC; 10,000 = $0.01 according to the official API documentation.
 
+**Phase 3C registration correction:** the row for Sigvora 251 below is retained as an accurate record of what this historical dispatcher snapshot returned, but it must not be read as Sigvora's current registration. The project owner confirms that 251 is the deregistered historical registration and 315 is the current registration. A fresh Phase 3C dispatcher query still returned 251 as active and omitted 315, creating conflicting registry data; current 315 contract metadata and eligibility are therefore unverified. See the Phase 3C section of the runtime audit.
+
 Notation: `?` means optional or not declared required. `schema missing` means the registry supplied `null`; no contract is inferred. For multi-capability miners, only the endpoint relevant to the stated intent is shown where its description makes that association clear.
 
 ## FRAUD_DETECTION — HETEROGENEOUS
