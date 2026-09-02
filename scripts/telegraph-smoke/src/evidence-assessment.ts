@@ -12,6 +12,7 @@ export interface EvidenceAssessmentInput {
   coverage: EvidenceCoverage;
   verification: EvidenceVerification;
   reasons?: readonly string[];
+  findings?: readonly string[];
   uncertainties?: readonly string[];
   contradictions?: readonly string[];
   missingEvidence?: readonly string[];
@@ -55,6 +56,7 @@ export function assessEvidence(input: EvidenceAssessmentInput): EvidenceAssessme
     ...(evidence.confidence === undefined ? {} : { providerConfidence: evidence.confidence }),
     quality: qualityFor(evidence.validationStatus, coverage, effectiveVerification),
     reasons: uniqueSorted([...policyReasons(evidence.validationStatus, coverage, effectiveVerification), ...(input.reasons ?? [])]),
+    findings: uniqueSorted(input.findings ?? []),
     uncertainties: uniqueSorted([...evidence.uncertainty, ...(input.uncertainties ?? [])]),
     contradictions,
     missingEvidence: uniqueSorted([...evidence.unavailableFields, ...(input.missingEvidence ?? [])]),
@@ -63,6 +65,7 @@ export function assessEvidence(input: EvidenceAssessmentInput): EvidenceAssessme
 
 export interface DomainAssessmentContext {
   verification: EvidenceVerification;
+  findings?: readonly string[];
   contradictions?: readonly string[];
   missingEvidence?: readonly string[];
 }
@@ -75,6 +78,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
       evidence,
       coverage: abstained ? "OUT_OF_COVERAGE" : evidence.label === undefined ? "UNKNOWN" : "SUFFICIENT",
       verification: abstained ? "NOT_APPLICABLE" : context.verification,
+      ...(context.findings === undefined ? {} : { findings: context.findings }),
       ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
       missingEvidence: [...(context.missingEvidence ?? []), ...(abstained ? ["supported_fraud_finding"] : [])],
     });
@@ -85,6 +89,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
       evidence,
       coverage: supported ? "SUFFICIENT" : "PARTIAL",
       verification: context.verification,
+      ...(context.findings === undefined ? {} : { findings: context.findings }),
       ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
       ...(context.missingEvidence === undefined ? {} : { missingEvidence: context.missingEvidence }),
       uncertainties: ["point_in_time_scan", "finite_provider_coverage", "no_future_safety_guarantee"],
@@ -95,6 +100,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
     evidence,
     coverage: relevantClaim ? "SUFFICIENT" : "UNKNOWN",
     verification: context.verification,
+    ...(context.findings === undefined ? {} : { findings: context.findings }),
     ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
     ...(context.missingEvidence === undefined ? {} : { missingEvidence: context.missingEvidence }),
   });

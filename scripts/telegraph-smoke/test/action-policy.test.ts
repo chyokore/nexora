@@ -1,0 +1,34 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { evaluateActionPolicy, type ProposedAction } from "../src/action-policy.js";
+import { createDecisionPacket, serializeDecisionPacket } from "../src/decision-packet.js";
+import { assessEvidence } from "../src/evidence-assessment.js";
+import { contradictedOnchain, insufficientFraud, proposedSupplierPayment, strongFraudWithoutConfidence, syntheticVerifiedFraudBlock, usableUrl } from "./fixtures/action-policy-fixtures.js";
+import { fraudOutOfCoverageFixture, urlSupportedFixture } from "./fixtures/sanitized-live-evidence.js";
+
+const decide = (evidence = [strongFraudWithoutConfidence, usableUrl], action = proposedSupplierPayment) => evaluateActionPolicy(action, evidence).actionDecision;
+const withTransaction: ProposedAction = { ...proposedSupplierPayment, subject: { ...proposedSupplierPayment.subject, transactionHash: "0xsanitized-transaction-reference" } };
+
+test("fully satisfied mandatory evidence allows", () => assert.equal(decide().decision, "ALLOW"));
+test("required fraud insufficient evidence reviews", () => assert.equal(decide([insufficientFraud, usableUrl]).decision, "REVIEW"));
+test("required out-of-coverage evidence reviews", () => { const result = decide([insufficientFraud, usableUrl]); assert.ok(result.reasons.includes("review:fraud-assessment:quality_below_USABLE")); });
+test("required contradicted transaction evidence reviews", () => assert.equal(decide([strongFraudWithoutConfidence, usableUrl, contradictedOnchain], withTransaction).decision, "REVIEW"));
+test("confidence one plus contradiction cannot allow", () => { assert.equal(contradictedOnchain.providerConfidence, 1); assert.notEqual(decide([strongFraudWithoutConfidence, usableUrl, contradictedOnchain], withTransaction).decision, "ALLOW"); });
+test("confidence zero plus insufficient cannot allow", () => { assert.equal(insufficientFraud.providerConfidence, 0); assert.notEqual(decide([insufficientFraud, usableUrl]).decision, "ALLOW"); });
+test("strong unrelated intent cannot compensate for missing fraud", () => assert.equal(decide([usableUrl]).decision, "REVIEW"));
+test("explicit verified adverse blocking finding blocks", () => assert.equal(decide([syntheticVerifiedFraudBlock, usableUrl]).decision, "BLOCK"));
+test("missing mandatory URL evidence reviews", () => assert.equal(decide([strongFraudWithoutConfidence]).decision, "REVIEW"));
+test("optional URL evidence missing does not prevent allow", () => { const action: ProposedAction = { ...proposedSupplierPayment, subject: { kind: "SUPPLIER_PAYMENT", reference: "supplier-reference-002" } }; assert.equal(decide([strongFraudWithoutConfidence], action).decision, "ALLOW"); });
+test("missing provider confidence does not prevent strong verified evidence satisfying policy", () => { assert.equal("providerConfidence" in strongFraudWithoutConfidence, false); assert.equal(decide().decision, "ALLOW"); });
+test("invalid required evidence reviews", () => { const invalid = assessEvidence({ evidence: { ...fraudOutOfCoverageFixture, validationStatus: "INVALID" }, coverage: "SUFFICIENT", verification: "VERIFIED" }); assert.equal(decide([invalid, usableUrl]).decision, "REVIEW"); });
+test("evidence below configured minimum reviews", () => { const limited = assessEvidence({ evidence: fraudOutOfCoverageFixture, coverage: "PARTIAL", verification: "UNVERIFIED" }); assert.equal(decide([limited, usableUrl]).decision, "REVIEW"); });
+test("lack of an adverse finding is not automatically positive evidence", () => { const noFinding = assessEvidence({ evidence: { ...fraudOutOfCoverageFixture, label: "no_adverse_finding", uncertainty: [] }, coverage: "SUFFICIENT", verification: "VERIFIED" }); const result = decide([noFinding, usableUrl]); assert.equal(result.decision, "REVIEW"); assert.ok(result.reasons.includes("review:fraud-assessment:missing_required_finding")); });
+test("decision reasons have deterministic ordering", () => { const reasons = decide().reasons; assert.deepEqual(reasons, [...reasons].sort()); });
+test("policy requirements have deterministic ordering", () => { const requirements = evaluateActionPolicy(proposedSupplierPayment, [usableUrl, strongFraudWithoutConfidence]).policy.requirements; assert.deepEqual(requirements.map((value) => value.id), [...requirements.map((value) => value.id)].sort()); });
+test("Decision Packet serialization is deterministic", () => { const packet = createDecisionPacket("decision-001", proposedSupplierPayment, [usableUrl, strongFraudWithoutConfidence]); assert.equal(serializeDecisionPacket(packet), serializeDecisionPacket(packet)); });
+test("repeated equivalent input creates byte-equivalent packets", () => assert.equal(serializeDecisionPacket(createDecisionPacket("decision-001", proposedSupplierPayment, [usableUrl, strongFraudWithoutConfidence])), serializeDecisionPacket(createDecisionPacket("decision-001", proposedSupplierPayment, [strongFraudWithoutConfidence, usableUrl]))));
+test("Decision Packet is deeply frozen and detached from mutable inputs", () => { const action = structuredClone(proposedSupplierPayment); const packet = createDecisionPacket("decision-001", action, [strongFraudWithoutConfidence, usableUrl]); action.description = "mutated after construction"; assert.notEqual(packet.proposedAction.description, action.description); assert.equal(Object.isFrozen(packet), true); assert.equal(Object.isFrozen(packet.proposedAction.subject), true); assert.equal(Object.isFrozen(packet.evidenceAssessments), true); });
+test("Decision Packet schema contains no secret or signature fields", () => assert.doesNotMatch(serializeDecisionPacket(createDecisionPacket("decision-001", proposedSupplierPayment, [strongFraudWithoutConfidence, usableUrl])), /private.?key|seed.?phrase|mnemonic|authorization.?signature|payment.?signature/i));
+test("block occurs only from an explicit verified configured finding", () => { const unverifiedAdverse = assessEvidence({ evidence: urlSupportedFixture, coverage: "SUFFICIENT", verification: "UNVERIFIED", findings: ["MALICIOUS_URL_CONFIRMED"] }); assert.equal(decide([strongFraudWithoutConfidence, unverifiedAdverse]).decision, "REVIEW"); assert.equal(decide([syntheticVerifiedFraudBlock, usableUrl]).decision, "BLOCK"); });
+test("review is the default for unresolved required evidence", () => assert.deepEqual(decide([]).decision, "REVIEW"));
+test("contradiction reason and confidence remain replay-visible", () => { const packet = createDecisionPacket("decision-contradiction", withTransaction, [strongFraudWithoutConfidence, usableUrl, contradictedOnchain]); assert.equal(packet.actionDecision.decision, "REVIEW"); assert.equal(packet.evidenceAssessments.find((value) => value.intent === "ONCHAIN_TX_LOOKUP")?.providerConfidence, 1); assert.ok(packet.actionDecision.reasons.includes("review:transaction-lookup:contradicted_required_evidence")); });

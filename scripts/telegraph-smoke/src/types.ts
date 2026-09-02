@@ -101,6 +101,7 @@ export interface EvidenceAssessment {
   providerConfidence?: number;
   quality: EvidenceQuality;
   reasons: string[];
+  findings: string[];
   uncertainties: string[];
   contradictions: string[];
   missingEvidence: string[];
