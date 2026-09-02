@@ -46,7 +46,7 @@ export function parseAmount(value: string | number): number {
 export function validateChallenge(challenge: PaymentChallenge, approvedAsset?: string, now = Date.now()): void {
   if (!challenge || typeof challenge !== "object") throw new Error("Malformed payment challenge");
   if (challenge.scheme !== PAYMENT_POLICY.scheme) throw new Error("Unsupported payment scheme");
-  if (challenge.x402Version !== undefined && challenge.x402Version !== 1 && challenge.x402Version !== 2) throw new Error("Unsupported x402 version");
+  if (challenge.x402Version !== 2) throw new Error("Payment execution requires authoritative x402 version 2");
   if (challenge.network !== PAYMENT_POLICY.network) throw new Error("Wrong payment network");
   if (!EVM_ADDRESS.test(challenge.asset ?? "")) throw new Error("Malformed asset identifier");
   if (!approvedAsset) throw new Error("Asset approval required before signing");

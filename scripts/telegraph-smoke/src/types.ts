@@ -4,7 +4,7 @@ export type Intent = (typeof PAID_INTENTS)[number];
 export type DiscoveryIntent = (typeof DISCOVERY_INTENTS)[number];
 
 export interface JsonSchema {
-  properties?: Record<string, { type?: string | string[] }>;
+  properties?: Record<string, { type?: string | string[]; enum?: unknown[] }>;
   required?: string[];
 }
 
@@ -61,6 +61,8 @@ export interface CaptureRecord {
   endpoint: string;
   requestContract: string;
   httpStatusSequence: number[];
+  httpNegotiationSteps: string[];
+  x402Version: number;
   paymentNetwork?: string;
   paymentAsset?: string;
   authorizedAmount?: number;
@@ -81,7 +83,7 @@ export interface CaptureRecord {
 export interface EvidenceBase { sourceMinerId: string; sourceMinerName: string; intent: DiscoveryIntent; validationStatus: Conformance; confidence?: number; uncertainty: string[]; unavailableFields: string[]; }
 export interface FraudEvidence extends EvidenceBase { intent: "FRAUD_DETECTION"; label?: string; reason?: string; }
 export interface UrlSafetyEvidence extends EvidenceBase { intent: "URL_SCAN"; queriedUrl?: string; verdict?: string; safe?: boolean; reachable?: boolean; riskScore?: number; threatIndicators?: unknown[]; sources?: unknown; scanStatus?: string | number; summary?: string; }
-export interface OnchainTransactionEvidence extends EvidenceBase { intent: "ONCHAIN_TX_LOOKUP"; transactionStatus?: string; blockNumber?: number; }
+export interface OnchainTransactionEvidence extends EvidenceBase { intent: "ONCHAIN_TX_LOOKUP"; queriedTransactionHash?: string; chain?: string; transactionStatus?: string; blockNumber?: number; blockHash?: string; from?: string; to?: string; valueWei?: string; valueNative?: number; receiptStatus?: string; method?: string; gasUsed?: string; effectiveGasPrice?: string; tokenEvents?: unknown[]; source?: unknown; }
 export interface FactCheckEvidence extends EvidenceBase { intent: "FACT_CHECK"; verdict?: string; sources?: unknown[]; }
 export type DomainEvidence = FraudEvidence | UrlSafetyEvidence | OnchainTransactionEvidence | FactCheckEvidence;
 

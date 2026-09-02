@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { parseChallenge } from "../src/challenge.js";
 import { classifyConformance } from "../src/conformance.js";
+import { compareField, compareTransactionEvidence } from "../src/comparison.js";
 import { PAYMENT_POLICY, RunLedger, validateChallenge } from "../src/policy.js";
 import { buildRequest, TEST_IDS } from "../src/requests.js";
 import { compatibleEndpoints, endpointCompatible, selectMiner } from "../src/selection.js";
@@ -12,7 +13,7 @@ import type { Intent, Miner, PaymentChallenge } from "../src/types.js";
 
 const ASSET = "0x1111111111111111111111111111111111111111";
 const PAYEE = "0x2222222222222222222222222222222222222222";
-const challenge = (overrides: Partial<PaymentChallenge> = {}): PaymentChallenge => ({ scheme: "exact", network: PAYMENT_POLICY.network, asset: ASSET, amount: 10_000, payTo: PAYEE, validUntil: Math.floor(Date.now() / 1000) + 300, ...overrides });
+const challenge = (overrides: Partial<PaymentChallenge> = {}): PaymentChallenge => ({ scheme: "exact", network: PAYMENT_POLICY.network, asset: ASSET, amount: 10_000, payTo: PAYEE, validUntil: Math.floor(Date.now() / 1000) + 300, x402Version: 2, ...overrides });
 const miner = (id: string, intent: Intent, rank: number, properties: string[], required: string[] = []): Miner => ({
   id, name: `Miner ${id}`, activation_status: "active", min_price_usdc: 10_000, supported_intents: [intent],
   endpoints: [{ method: "GET", path: intent === "FRAUD_DETECTION" ? "/risk-check" : intent === "URL_SCAN" ? "/url-scan" : "/lookup", description: `${intent}. Test endpoint.` }],
@@ -25,6 +26,7 @@ test("neutral selection chooses best rank", () => assert.equal(selectMiner([mine
 test("stable numeric ID breaks a complete tie", () => assert.equal(selectMiner([miner("10", "URL_SCAN", 1, ["url"]), miner("2", "URL_SCAN", 1, ["url"])], "URL_SCAN").miner.id, "2"));
 test("malformed registry is rejected", () => assert.throws(() => selectMiner({}, "URL_SCAN"), /Malformed registry/));
 test("wrong network is rejected", () => assert.throws(() => validateChallenge(challenge({ network: "eip155:1" }), ASSET), /Wrong payment network/));
+test("x402 version must be authoritative version 2", () => { const { x402Version: _omitted, ...missingVersion } = challenge(); assert.throws(() => validateChallenge(challenge({ x402Version: 1 }), ASSET), /version 2/); assert.throws(() => validateChallenge(missingVersion, ASSET), /version 2/); assert.equal(parseChallenge({ x402Version: 2, accepts: [challenge()] }).x402Version, 2); });
 test("over-budget call is rejected", () => assert.throws(() => validateChallenge(challenge({ amount: 10_001 }), ASSET), /Per-call/));
 test("cumulative budget is rejected", () => { const ledger = new RunLedger(25_000); const s = selection("FRAUD_DETECTION"); assert.throws(() => ledger.authorize(TEST_IDS.FRAUD_DETECTION, "FRAUD_DETECTION", s, challenge(), ASSET), /Cumulative/); });
 test("unexpected intent/miner pair is rejected", () => assert.throws(() => new RunLedger().authorize(TEST_IDS.URL_SCAN, "URL_SCAN", selection("FRAUD_DETECTION"), challenge(), ASSET), /Unexpected selected miner/));
@@ -37,6 +39,8 @@ test("unexpected asset is rejected", () => assert.throws(() => validateChallenge
 test("malformed asset is rejected", () => assert.throws(() => validateChallenge(challenge({ asset: "USDC" }), ASSET), /Malformed asset/));
 test("expired challenge is rejected", () => assert.throws(() => validateChallenge(challenge({ validUntil: 1 }), ASSET), /Expired/));
 test("request builders match all three schema families", () => { assert.ok("query" in buildRequest("FRAUD_DETECTION", selection("FRAUD_DETECTION").miner)); assert.deepEqual(buildRequest("URL_SCAN", selection("URL_SCAN").miner), { url: "https://example.com/" }); assert.ok("tx_hash" in buildRequest("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP").miner)); });
+test("on-chain request uses the schema-declared Base chain value and current public receipt", () => { const value = selection("ONCHAIN_TX_LOOKUP").miner; if (!value.input_schema?.properties?.chain) throw new Error("missing fixture chain"); value.input_schema.properties.chain.enum = ["eth", "base"];
+  assert.deepEqual(buildRequest("ONCHAIN_TX_LOOKUP", value), { tx_hash: "0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882", chain: "base" }); });
 test("dry-run architecture has no signer dependency", async () => { const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/cli.js", import.meta.url), "utf8")); assert.doesNotMatch(source, /wrapFetchWithPayment|privateKeyToAccount|PAYMENT-SIGNATURE/); });
 test("unsigned inspection sends exactly one request and never retries with payment", async () => {
   let calls = 0;
@@ -68,6 +72,11 @@ test("URL normalization preserves supplied live evidence", () => { const value =
 test("URL normalization preserves missing evidence without manufacturing safety", () => { const value = normalizeEvidence("URL_SCAN", selection("URL_SCAN"), { unrelated: true }, "MATCH"); assert.equal(value.intent, "URL_SCAN"); if (value.intent !== "URL_SCAN") return; assert.equal("safe" in value, false); assert.equal("verdict" in value, false); assert.equal("confidence" in value, false); assert.equal("threatIndicators" in value, false); assert.deepEqual(value.unavailableFields, ["confidence", "queriedUrl", "verdict", "threatIndicators"]); });
 test("malformed URL response remains invalid and unrelated fields stay excluded", () => { assert.equal(classifyConformance([], { required: ["safe"] }), "INVALID"); const value = normalizeEvidence("URL_SCAN", selection("URL_SCAN"), { label: "fraud", transactionStatus: "confirmed" }, "INVALID"); assert.equal(value.intent, "URL_SCAN"); if (value.intent !== "URL_SCAN") return; assert.equal("label" in value, false); assert.equal("transactionStatus" in value, false); });
 test("normalization keeps domains distinct", () => { const value = normalizeEvidence("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP"), { status: "confirmed", block_number: 7 }, "MATCH"); assert.equal(value.intent, "ONCHAIN_TX_LOOKUP"); assert.equal("label" in value, false); });
+test("on-chain normalization preserves hash block addresses and supplied facts", () => { const value = normalizeEvidence("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP"), { tx_hash: "0xabc", chain: "base", status: "confirmed", block_number: 7, block_hash: "0xdef", from: "0xfrom", to: "0xto", value_wei: "0", receipt_status: "success", confidence: 0.9 }, "MATCH"); assert.equal(value.intent, "ONCHAIN_TX_LOOKUP"); if (value.intent !== "ONCHAIN_TX_LOOKUP") return; assert.equal(value.queriedTransactionHash, "0xabc"); assert.equal(value.blockNumber, 7); assert.equal(value.from, "0xfrom"); assert.equal(value.to, "0xto"); assert.equal(value.confidence, 0.9); assert.equal("label" in value, false); });
+test("on-chain normalization preserves missing fields and confidence", () => { const value = normalizeEvidence("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP"), { tx_hash: "0xabc", status: "not_found" }, "MATCH"); assert.equal("confidence" in value, false); assert.ok(value.unavailableFields.includes("blockNumber")); assert.ok(value.unavailableFields.includes("from")); assert.ok(value.unavailableFields.includes("to")); assert.deepEqual(value.uncertainty, ["transaction_not_found_by_miner"]); });
+test("comparison classifies matching and conflicting fields", () => { assert.equal(compareField("0xAbC", "0xabc"), "MATCH"); assert.equal(compareField(7, 8), "MISMATCH"); });
+test("comparison classifies unavailable and not-comparable fields", () => { assert.equal(compareField("known", null), "UNAVAILABLE"); assert.equal(compareField(undefined, "supplied"), "NOT_COMPARABLE"); });
+test("transaction comparison reports status contradiction independently", () => { const result = compareTransactionEvidence({ hash: "0xabc", chain: "base", receiptStatus: "success" }, { tx_hash: "0xabc", chain: "base", status: "not_found" }); assert.equal(result.transactionHash, "MATCH"); assert.equal(result.chain, "MATCH"); assert.equal(result.receiptStatus, "MISMATCH"); assert.equal(result.blockNumber, "UNAVAILABLE"); });
 test("sanitized output removes secrets and signatures", () => { const secret = `0x${"a".repeat(64)}`; const output = sanitizeForOutput({ privateKey: secret, "payment-signature": secret }); assert.doesNotMatch(output, new RegExp("a{64}")); assert.match(output, /redacted/); });
 test("unexpected redirects are rejected before payment", async () => { const redirected = async () => new Response(null, { status: 302, headers: { location: "https://evil.invalid" } }); await assert.rejects(() => inspectUnsignedChallenge("http://registry.test", selection("URL_SCAN"), { url: "https://example.com" }, redirected), /redirect/); });
 test("CLI initializes paid adapter only behind explicit execution branch", async () => { const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/cli.js", import.meta.url), "utf8")); assert.match(source, /if \(values\["execute-paid"\]\)/); assert.match(source, /requireExecutionEnvironment/); });

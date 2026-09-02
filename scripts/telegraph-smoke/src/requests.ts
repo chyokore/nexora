@@ -1,6 +1,6 @@
 import type { Intent, Miner } from "./types.js";
 
-const PUBLIC_TX = "0xc4a5412de985341556be1c248e2dbd3ad93a2b1d3847105147dd68a41de7c998";
+const PUBLIC_TX = "0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882";
 
 export const TEST_IDS: Record<Intent, string> = {
   FRAUD_DETECTION: "fraud-smoke-001",
@@ -24,7 +24,12 @@ export function buildRequest(intent: Intent, miner: Miner): Record<string, strin
   else if ("hash" in properties) request.hash = PUBLIC_TX;
   else if ("txHash" in properties) request.txHash = PUBLIC_TX;
   else throw new Error("Selected on-chain schema lacks a transaction identifier");
-  if ("chain" in properties) request.chain = "base-sepolia";
+  if ("chain" in properties) {
+    const allowed = properties.chain?.enum;
+    const supported = ["base", "base-sepolia", "Base Sepolia"].find((value) => !allowed || allowed.includes(value));
+    if (!supported) throw new Error("Selected on-chain schema does not support Base Sepolia");
+    request.chain = supported;
+  }
   if ("chainId" in properties) request.chainId = 84532;
   if ((miner.input_schema?.required ?? []).includes("query")) request.query = `Look up Base Sepolia transaction ${PUBLIC_TX}`;
   return request;

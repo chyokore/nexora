@@ -46,3 +46,16 @@ Timestamp: `2026-09-02T20:38:12.635Z`
 - **INFERRED:** Empty checked-feed listings mean those providers supplied no listing evidence at scan time; they are not a universal guarantee that the URL will remain safe.
 - **UNAVAILABLE:** No provider-independent guarantee, future-state assurance, or broader threat-feed coverage was supplied.
 - **VERIFIED LIVE:** Exactly 1 logical paid operation, 1 paid retry, 1 authorization flow, 1 settlement, 0 direct Nexora blockchain writes, and 0.01 USDC reportable cost. Execution stopped after URL_SCAN.
+
+## Phase 5D: single live ONCHAIN_TX_LOOKUP purchase
+
+Timestamp: `2026-09-02T20:56:30.757Z`
+
+- **VERIFIED BASE SEPOLIA:** Before purchase, transaction `0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882` existed on chain 84532 at block 46,306,603, block hash `0xb44e2d6f1cd8abe581fb94717846a4e58f55fd3992e5f3ea6620bbaa7549c384`, index 22, from `0xc6699d2aada6c36dfea5c248dd70f9cb0235cb63` to `0xca11bde05977b3631167028862be2a173976ca11`, native value 0, with 612 calldata bytes, successful receipt, 92,348 gas used, effective gas price 7,000,000, and 2 logs.
+- **VERIFIED LIVE TELEGRAPH:** Fresh discovery returned 129 registrations, 12 ONCHAIN_TX_LOOKUP miners, 9 endpoint-compatible endpoint candidates, 11 schema-compatible miners, and 8 finally eligible miners. Neutral selection chose TxLens miner `9002`, rank 1, score `0.014715711`, using `GET /check-tx`. The request used the real hash and schema-enumerated `chain=base`.
+- **VERIFIED LIVE TELEGRAPH:** Negotiation was `[402, 402, 200]`: guard preflight unsigned challenge, x402 client unsigned negotiation, then authorized retry. The authoritative challenge explicitly supplied x402 version 2, scheme `exact`, network `eip155:84532`, approved USDC asset, amount 10,000 base units, and the validated payee. Settlement metadata reported success.
+- **VERIFIED BASE SEPOLIA:** Settlement transaction `0x173cd26ca347faf6de0a35ab310d8e7254515e25f9d3a40c35934e2dcc9ef5e9` transferred 10,000 USDC base units to the payee in block 46,307,152. Burner balance changed from 19.98 to 19.97 USDC.
+- **SUPPLIED BY MINER:** HTTP 200 schema-matching JSON echoed the queried hash and `chain: base` but returned `status: not_found`, confidence 1, and no block, parties, value, receipt status, or decoded method.
+- **CONTRADICTED:** Miner `not_found` conflicts with the independently verified successful Base Sepolia transaction. Hash and chain match; receipt/existence status mismatches; block, from, to, value, and receipt fields are unavailable from the miner response.
+- **NORMALIZED:** `OnchainTransactionEvidence` preserves the exact queried hash, chain, miner status, confidence, missing fields, and `transaction_not_found_by_miner` uncertainty. No fraud, suspiciousness, or Nexora decision is inferred. Response schema classification: `MATCH`.
+- **VERIFIED LIVE TELEGRAPH:** Exactly 1 logical paid operation, 1 paid retry, 1 authorization flow, 1 settlement, 0 direct Nexora blockchain writes, and 0.01 USDC reportable cost. Execution stopped after ONCHAIN_TX_LOOKUP.
