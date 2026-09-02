@@ -9,7 +9,8 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "tsc -p tsconfig.json && node --test dist/test/*.test.js",
-    "dry-run": "tsc -p tsconfig.json && node dist/src/cli.js"
+    "dry-run": "tsc -p tsconfig.json && node dist/src/cli.js",
+    "start:api": "tsc -p tsconfig.json && node dist/src/api-cli.js"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

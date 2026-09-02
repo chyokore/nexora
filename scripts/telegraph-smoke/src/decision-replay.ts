@@ -47,12 +47,12 @@ function isJsonValue(value: unknown, seen = new WeakSet<object>()): boolean {
   return (Array.isArray(value) ? value : Object.values(value)).every((item) => isJsonValue(item, seen));
 }
 
-function validateAction(value: unknown): value is ProposedAction {
+export function validateProposedAction(value: unknown): value is ProposedAction {
   if (!isRecord(value) || !onlyKeys(value, ["id", "type", "description", "subject", "riskClass"]) || typeof value.id !== "string" || value.type !== "SUPPLIER_PAYMENT_AUTHORIZATION" || typeof value.description !== "string" || value.riskClass !== "HIGH" || !isRecord(value.subject)) return false;
   return onlyKeys(value.subject, ["kind", "reference", "supplierUrl", "transactionHash"]) && value.subject.kind === "SUPPLIER_PAYMENT" && typeof value.subject.reference === "string" && (value.subject.supplierUrl === undefined || typeof value.subject.supplierUrl === "string") && (value.subject.transactionHash === undefined || typeof value.subject.transactionHash === "string");
 }
 
-function validateAssessment(value: unknown): value is EvidenceAssessment {
+export function validateEvidenceAssessment(value: unknown): value is EvidenceAssessment {
   if (!isRecord(value) || !onlyKeys(value, ["intent", "structuralValidity", "coverage", "verification", "providerConfidence", "quality", "reasons", "findings", "providerFacts", "uncertainties", "contradictions", "missingEvidence"])) return false;
   return typeof value.intent === "string" && intents.has(value.intent) && typeof value.structuralValidity === "string" && conformances.has(value.structuralValidity) && typeof value.coverage === "string" && coverages.has(value.coverage) && typeof value.verification === "string" && verifications.has(value.verification) && (value.providerConfidence === undefined || typeof value.providerConfidence === "number" && Number.isFinite(value.providerConfidence)) && typeof value.quality === "string" && qualities.has(value.quality) && stringArray(value.reasons) && stringArray(value.findings) && (value.providerFacts === undefined || isRecord(value.providerFacts) && isJsonValue(value.providerFacts)) && stringArray(value.uncertainties) && stringArray(value.contradictions) && stringArray(value.missingEvidence);
 }
@@ -78,10 +78,10 @@ function validatePacket(value: unknown): { packet?: DecisionPacket; status?: Rep
   const errors: string[] = [];
   if (!onlyKeys(value, ["version", "decisionId", "proposedAction", "evidenceAssessments", "policy", "actionDecision"])) errors.push("packet:unexpected_fields");
   if (typeof value.decisionId !== "string") errors.push("packet:invalid_decision_id");
-  if (!validateAction(value.proposedAction)) errors.push("packet:invalid_proposed_action");
-  if (!Array.isArray(value.evidenceAssessments) || !value.evidenceAssessments.every(validateAssessment)) errors.push("packet:invalid_evidence_assessments");
+  if (!validateProposedAction(value.proposedAction)) errors.push("packet:invalid_proposed_action");
+  if (!Array.isArray(value.evidenceAssessments) || !value.evidenceAssessments.every(validateEvidenceAssessment)) errors.push("packet:invalid_evidence_assessments");
   if (!validatePolicy(value.policy)) errors.push("packet:invalid_policy");
-  else if (validateAction(value.proposedAction) && canonicalSerialize(value.policy) !== canonicalSerialize(supplierPaymentPolicy(value.proposedAction))) errors.push("packet:policy_snapshot_inconsistent");
+  else if (validateProposedAction(value.proposedAction) && canonicalSerialize(value.policy) !== canonicalSerialize(supplierPaymentPolicy(value.proposedAction))) errors.push("packet:policy_snapshot_inconsistent");
   if (!validateDecision(value.actionDecision)) errors.push("packet:invalid_action_decision");
   if (errors.length > 0) return { status: "INVALID_PACKET", errors: sorted(errors), packetVersion: 1 };
   return { packet: value as unknown as DecisionPacket, errors: [], packetVersion: 1 };
