@@ -92,6 +92,7 @@ export type Conformance = "MATCH" | "COMPATIBLE_WITH_ADAPTER" | "MISMATCH" | "IN
 export type EvidenceCoverage = "SUFFICIENT" | "PARTIAL" | "OUT_OF_COVERAGE" | "UNKNOWN";
 export type EvidenceVerification = "VERIFIED" | "PARTIALLY_VERIFIED" | "UNVERIFIED" | "CONTRADICTED" | "NOT_APPLICABLE";
 export type EvidenceQuality = "STRONG" | "USABLE" | "LIMITED" | "INSUFFICIENT" | "CONTRADICTED" | "INVALID";
+export type EvidenceFactValue = string | number | boolean | null | EvidenceFactValue[] | { [key: string]: EvidenceFactValue };
 
 export interface EvidenceAssessment {
   intent: DiscoveryIntent;
@@ -102,6 +103,7 @@ export interface EvidenceAssessment {
   quality: EvidenceQuality;
   reasons: string[];
   findings: string[];
+  providerFacts?: Record<string, EvidenceFactValue>;
   uncertainties: string[];
   contradictions: string[];
   missingEvidence: string[];

@@ -61,6 +61,11 @@ function evidenceReference(assessment: EvidenceAssessment): string {
 
 export function evaluateActionPolicy(action: ProposedAction, assessments: readonly EvidenceAssessment[]): { policy: ActionPolicySnapshot; actionDecision: ActionDecision } {
   const policy = supplierPaymentPolicy(action);
+  return { policy, actionDecision: evaluateRecordedPolicy(action, assessments, policy) };
+}
+
+/** Canonical evaluator shared by live construction and historical replay. */
+export function evaluateRecordedPolicy(action: ProposedAction, assessments: readonly EvidenceAssessment[], policy: ActionPolicySnapshot): ActionDecision {
   const satisfied: string[] = [], unsatisfied: string[] = [], blocking: string[] = [], review: string[] = [], reasons: string[] = [];
 
   for (const requirement of policy.requirements) {
@@ -109,5 +114,5 @@ export function evaluateActionPolicy(action: ProposedAction, assessments: readon
 
   const decision: ActionDecisionValue = blocking.length > 0 ? "BLOCK" : unsatisfied.length > 0 ? "REVIEW" : "ALLOW";
   reasons.push(`decision:${decision.toLowerCase()}`);
-  return { policy, actionDecision: { decision, reasons: sortedUnique(reasons), satisfiedRequirements: sortedUnique(satisfied), unsatisfiedRequirements: sortedUnique(unsatisfied), blockingEvidence: sortedUnique(blocking), reviewEvidence: sortedUnique(review) } };
+  return { decision, reasons: sortedUnique(reasons), satisfiedRequirements: sortedUnique(satisfied), unsatisfiedRequirements: sortedUnique(unsatisfied), blockingEvidence: sortedUnique(blocking), reviewEvidence: sortedUnique(review) };
 }

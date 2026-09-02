@@ -4,6 +4,7 @@ import type {
   EvidenceAssessment,
   EvidenceCoverage,
   EvidenceQuality,
+  EvidenceFactValue,
   EvidenceVerification,
 } from "./types.js";
 
@@ -13,12 +14,14 @@ export interface EvidenceAssessmentInput {
   verification: EvidenceVerification;
   reasons?: readonly string[];
   findings?: readonly string[];
+  providerFacts?: Readonly<Record<string, EvidenceFactValue>>;
   uncertainties?: readonly string[];
   contradictions?: readonly string[];
   missingEvidence?: readonly string[];
 }
 
 const uniqueSorted = (values: readonly string[]): string[] => [...new Set(values)].sort();
+const sortedFacts = (facts: Readonly<Record<string, EvidenceFactValue>>): Record<string, EvidenceFactValue> => Object.fromEntries(Object.entries(facts).sort(([a], [b]) => a.localeCompare(b)));
 
 function qualityFor(structure: Conformance, coverage: EvidenceCoverage, verification: EvidenceVerification): EvidenceQuality {
   if (structure === "INVALID" || structure === "MISMATCH") return "INVALID";
@@ -57,6 +60,7 @@ export function assessEvidence(input: EvidenceAssessmentInput): EvidenceAssessme
     quality: qualityFor(evidence.validationStatus, coverage, effectiveVerification),
     reasons: uniqueSorted([...policyReasons(evidence.validationStatus, coverage, effectiveVerification), ...(input.reasons ?? [])]),
     findings: uniqueSorted(input.findings ?? []),
+    providerFacts: sortedFacts(input.providerFacts ?? {}),
     uncertainties: uniqueSorted([...evidence.uncertainty, ...(input.uncertainties ?? [])]),
     contradictions,
     missingEvidence: uniqueSorted([...evidence.unavailableFields, ...(input.missingEvidence ?? [])]),
@@ -79,6 +83,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
       coverage: abstained ? "OUT_OF_COVERAGE" : evidence.label === undefined ? "UNKNOWN" : "SUFFICIENT",
       verification: abstained ? "NOT_APPLICABLE" : context.verification,
       ...(context.findings === undefined ? {} : { findings: context.findings }),
+      providerFacts: { ...(evidence.label === undefined ? {} : { label: evidence.label }) },
       ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
       missingEvidence: [...(context.missingEvidence ?? []), ...(abstained ? ["supported_fraud_finding"] : [])],
     });
@@ -90,6 +95,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
       coverage: supported ? "SUFFICIENT" : "PARTIAL",
       verification: context.verification,
       ...(context.findings === undefined ? {} : { findings: context.findings }),
+      providerFacts: { ...(evidence.queriedUrl === undefined ? {} : { queriedUrl: evidence.queriedUrl }), ...(evidence.verdict === undefined ? {} : { verdict: evidence.verdict }), ...(evidence.safe === undefined ? {} : { safe: evidence.safe }) },
       ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
       ...(context.missingEvidence === undefined ? {} : { missingEvidence: context.missingEvidence }),
       uncertainties: ["point_in_time_scan", "finite_provider_coverage", "no_future_safety_guarantee"],
@@ -101,6 +107,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
     coverage: relevantClaim ? "SUFFICIENT" : "UNKNOWN",
     verification: context.verification,
     ...(context.findings === undefined ? {} : { findings: context.findings }),
+    providerFacts: evidence.intent === "ONCHAIN_TX_LOOKUP" ? { ...(evidence.queriedTransactionHash === undefined ? {} : { queriedTransactionHash: evidence.queriedTransactionHash }), ...(evidence.chain === undefined ? {} : { chain: evidence.chain }), ...(evidence.transactionStatus === undefined ? {} : { transactionStatus: evidence.transactionStatus }) } : { ...(evidence.verdict === undefined ? {} : { verdict: evidence.verdict }) },
     ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
     ...(context.missingEvidence === undefined ? {} : { missingEvidence: context.missingEvidence }),
   });
