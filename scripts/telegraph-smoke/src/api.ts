@@ -1,4 +1,4 @@
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createDecisionPacket, type DecisionPacket } from "./decision-packet.js";
 import { canonicalSerialize, replayDecisionPacket, sanitizeReplayValue, validateEvidenceAssessment, validateProposedAction } from "./decision-replay.js";
@@ -8,6 +8,9 @@ import type { EvidenceAssessment } from "./types.js";
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
 const routes = new Set(["/health", "/v1/decisions/evaluate", "/v1/replays/verify"]);
+const LOCAL_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
+
+export interface ApiServerOptions { allowedOrigins?: readonly string[]; logRequests?: boolean }
 
 interface ApiErrorBody { error: { code: string; message: string; details: string[] } }
 class RequestError extends Error { constructor(readonly status: number, readonly code: string, message: string, readonly details: string[] = []) { super(message); } }
@@ -21,6 +24,23 @@ function sendJson(response: ServerResponse, status: number, body: unknown): void
 function sendError(response: ServerResponse, status: number, code: string, message: string, details: string[] = []): void {
   const body: ApiErrorBody = { error: { code, message, details: [...details].sort() } };
   sendJson(response, status, body);
+}
+
+export function resolveAllowedOrigins(value = process.env.CORS_ALLOWED_ORIGINS): string[] {
+  const configured = value?.split(",").map((origin) => origin.trim().replace(/\/$/, "")).filter((origin) => /^https?:\/\/[^/]+$/i.test(origin)) ?? [];
+  return [...new Set([...LOCAL_ORIGINS, ...configured])].sort();
+}
+
+function applyCors(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): boolean {
+  const origin = request.headers.origin;
+  if (origin === undefined) return true;
+  response.setHeader("vary", "Origin");
+  if (!allowedOrigins.has(origin)) { sendError(response, 403, "ORIGIN_NOT_ALLOWED", "Request origin is not allowed"); return false; }
+  response.setHeader("access-control-allow-origin", origin);
+  response.setHeader("access-control-allow-methods", "GET, POST, OPTIONS");
+  response.setHeader("access-control-allow-headers", "Content-Type");
+  response.setHeader("access-control-max-age", "600");
+  return true;
 }
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
@@ -56,9 +76,11 @@ function decisionIdFor(input: { proposedAction: ProposedAction; evidenceAssessme
   return `decision:${digest}`;
 }
 
-async function handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
+async function handle(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): Promise<void> {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
   if (!routes.has(path)) { sendError(response, 404, "NOT_FOUND", "Route not found"); return; }
+  if (!applyCors(request, response, allowedOrigins)) return;
+  if (request.method === "OPTIONS") { response.writeHead(204, { "cache-control": "no-store" }); response.end(); return; }
   const requiredMethod = path === "/health" ? "GET" : "POST";
   if (request.method !== requiredMethod) { response.setHeader("allow", requiredMethod); sendError(response, 405, "METHOD_NOT_ALLOWED", `Use ${requiredMethod} for this route`); return; }
   if (path === "/health") { sendJson(response, 200, { status: "ok", service: "nexora-api", version: API_VERSION }); return; }
@@ -74,11 +96,18 @@ async function handle(request: IncomingMessage, response: ServerResponse): Promi
   sendJson(response, 200, decisionReplay);
 }
 
-export function createApiServer(): Server {
-  return createServer((request, response) => { handle(request, response).catch((error: unknown) => {
+export function createApiServer(options: ApiServerOptions = {}): Server {
+  const allowedOrigins = new Set(options.allowedOrigins ?? resolveAllowedOrigins());
+  return createServer((request, response) => {
+    const startedAt = performance.now();
+    const requestId = randomUUID();
+    response.setHeader("x-request-id", requestId);
+    if (options.logRequests) response.once("finish", () => console.log(JSON.stringify({ requestId, method: request.method ?? "UNKNOWN", route: new URL(request.url ?? "/", "http://localhost").pathname, status: response.statusCode, durationMs: Math.round(performance.now() - startedAt) })));
+    handle(request, response, allowedOrigins).catch((error: unknown) => {
     if (error instanceof RequestError) sendError(response, error.status, error.code, error.message, error.details);
     else sendError(response, 500, "INTERNAL_ERROR", "Unexpected server error");
-  }); });
+    });
+  });
 }
 
 export function resolvePort(value = process.env.PORT): number {
@@ -90,7 +119,7 @@ export function resolvePort(value = process.env.PORT): number {
 }
 
 export async function startApiServer(port = resolvePort()): Promise<Server> {
-  const server = createApiServer();
+  const server = createApiServer({ logRequests: true });
   await new Promise<void>((resolve, reject) => { server.once("error", reject); server.listen(port, "0.0.0.0", resolve); });
   return server;
 }

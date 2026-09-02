@@ -2,6 +2,10 @@
 
 The Decision Layer for Autonomous Agents.
 
+**Public demo:** https://nexora-seven-lemon.vercel.app
+
+**API health:** https://nexora-api-3efi.onrender.com/health
+
 Telegraph intelligence tells autonomous agents what is happening. Nexora is being built to evaluate independent Telegraph intelligence, preserve agreement, conflict, missing evidence, and uncertainty, and eventually return a bounded decision:
 
 - ALLOW
@@ -12,21 +16,21 @@ Each decision is intended to include an inspectable Decision Replay explaining t
 
 Nexora is a **Telegraph Protocol Hackathon Season I — Track 3: Applications** project.
 
-## Architecture concept
+## Architecture
 
 ```text
-Proposed Action
-→ Telegraph Intelligence
-→ Evidence Normalization
-→ Agreement / Conflict / Uncertainty
-→ Deterministic Decision Policy
+Propose
+→ Intelligence Evidence
+→ Evidence Assessment
+→ Policy
 → ALLOW / REVIEW / BLOCK
 → Decision Replay
 ```
 
-## Current status
+## Public demo
 
-Nexora is in discovery and runtime verification. The live Telegraph miner registry has been inspected, and routing behavior and miner contracts have been audited. Paid x402 inference has not yet been executed, and application implementation has not begun.
+The current public experience uses sanitized, deterministic fixtures so judges can inspect evidence assessment, policy outcomes, and replay verification without wallets or paid calls. Live Telegraph/x402 acquisition is intentionally disconnected.
 
+- [Deployment and verification](docs/deployment.md)
 - [Telegraph runtime audit](docs/telegraph-runtime-audit.md)
 - [Telegraph contract compatibility matrix](docs/telegraph-contract-compatibility-matrix.md)

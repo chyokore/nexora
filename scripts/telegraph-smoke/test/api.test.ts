@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import { readFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { createApiServer, resolvePort, startApiServer } from "../src/api.js";
+import { createApiServer, resolveAllowedOrigins, resolvePort, startApiServer } from "../src/api.js";
 import { createDecisionPacket } from "../src/decision-packet.js";
 import { contradictedOnchain, insufficientFraud, proposedSupplierPayment, strongFraudWithoutConfidence, syntheticVerifiedFraudBlock, usableUrl } from "./fixtures/action-policy-fixtures.js";
 
@@ -35,6 +35,11 @@ test("arbitrary policy injection is rejected", async () => { const response = aw
 test("oversized request returns 413", async () => { const action = { ...proposedSupplierPayment, description: "x".repeat(70_000) }; const response = await evaluate([], action); assert.equal(response.status, 413); assert.equal((await json(response)).error.code, "REQUEST_TOO_LARGE"); });
 test("unknown route returns 404", async () => { const response = await fetch(`${baseUrl}/missing`); assert.equal(response.status, 404); assert.equal((await json(response)).error.code, "NOT_FOUND"); });
 test("incorrect method returns 405 and Allow", async () => { const response = await fetch(`${baseUrl}/health`, { method: "POST" }); assert.equal(response.status, 405); assert.equal(response.headers.get("allow"), "GET"); });
+test("allowed browser origin receives restrictive CORS headers", async () => { const response = await fetch(`${baseUrl}/health`, { headers: { origin: "http://127.0.0.1:5173" } }); assert.equal(response.status, 200); assert.equal(response.headers.get("access-control-allow-origin"), "http://127.0.0.1:5173"); assert.notEqual(response.headers.get("access-control-allow-origin"), "*"); });
+test("disallowed browser origin is rejected", async () => { const response = await fetch(`${baseUrl}/health`, { headers: { origin: "https://attacker.example" } }); assert.equal(response.status, 403); assert.equal((await json(response)).error.code, "ORIGIN_NOT_ALLOWED"); });
+test("no-origin server request remains allowed", async () => { assert.equal((await fetch(`${baseUrl}/health`)).status, 200); });
+test("allowed preflight returns explicit methods and origin", async () => { const response = await fetch(`${baseUrl}/v1/decisions/evaluate`, { method: "OPTIONS", headers: { origin: "http://localhost:5173", "access-control-request-method": "POST" } }); assert.equal(response.status, 204); assert.equal(response.headers.get("access-control-allow-origin"), "http://localhost:5173"); assert.match(response.headers.get("access-control-allow-methods") ?? "", /POST/); });
+test("CORS origin configuration is normalized, includes local development, and never wildcarded", () => { assert.deepEqual(resolveAllowedOrigins("https://nexora.vercel.app/, https://nexora.vercel.app,invalid,*"), ["http://127.0.0.1:5173", "http://localhost:5173", "https://nexora.vercel.app"]); });
 test("deterministic evaluation request produces byte-identical response", async () => { const first = await (await evaluate([strongFraudWithoutConfidence, usableUrl])).text(); const second = await (await evaluate([strongFraudWithoutConfidence, usableUrl])).text(); assert.equal(first, second); });
 test("PORT parser honors valid values and rejects coercion", () => { assert.equal(resolvePort("8080"), 8080); assert.equal(resolvePort("0"), 0); assert.equal(resolvePort(undefined), 3000); assert.throws(() => resolvePort("1.5")); assert.throws(() => resolvePort("70000")); });
 test("startApiServer starts and closes on an ephemeral port without credentials", async () => { const previous = process.env.TELEGRAPH_EVM_PRIVATE_KEY; delete process.env.TELEGRAPH_EVM_PRIVATE_KEY; const temporary = await startApiServer(0); assert.ok((temporary.address() as AddressInfo).port > 0); await new Promise<void>((resolve, reject) => temporary.close((error) => error ? reject(error) : resolve())); if (previous !== undefined) process.env.TELEGRAPH_EVM_PRIVATE_KEY = previous; });
