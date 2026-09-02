@@ -21,3 +21,15 @@ Execution stopped before authorization. The challenge asset has not been approve
 - **VERIFIED LIVE:** Neutral rank/score still selected DegenLens miner `10002`, but now selected `GET /anomaly/check`, whose description explicitly declares `FRAUD_DETECTION`.
 - **VERIFIED LIVE:** DegenLens `GET` and `POST /transaction/lookup` were rejected for FRAUD_DETECTION because their descriptions explicitly declare `ONCHAIN_TX_LOOKUP`; `GET` and `POST /anomaly/check` were independently accepted.
 - **INFERRED AND TESTED LOCALLY:** Endpoint `path`, `method`, and optional `description` are the only endpoint-level registry fields observed. Nexora treats miner intent eligibility, endpoint intent association, and shared-schema satisfiability as separate gates. No miner endpoint, x402 challenge, signature, settlement, or blockchain write occurred in this correction phase.
+
+## Phase 5B: single live FRAUD_DETECTION purchase
+
+Timestamp: `2026-09-02T20:27:27.873Z`
+
+- **VERIFIED LIVE:** Fresh discovery returned 129 registrations, 15 FRAUD_DETECTION miners, 15 endpoint-compatible endpoint candidates, 6 schema-compatible miners, and 6 finally eligible miners. Neutral selection chose DegenLens miner `10002`, rank 1, score 1, using `GET /anomaly/check`; the endpoint explicitly declares FRAUD_DETECTION and requires only `query`.
+- **VERIFIED LIVE:** Logical call `fraud-smoke-001` completed HTTP negotiation `[402, 402, 200]` using x402 v2, scheme `exact`, network `eip155:84532`, asset `0x036CbD53842c5426634e7929541eC2318f3dCF7e`, amount 10,000 base units (0.01 USDC), and payee `0x5a2324aA18613FAD4e44bDF0d6c73Ec1f6D87ff8`. Settlement metadata reported success.
+- **VERIFIED FROM BASE SEPOLIA:** Transaction `0x1a26240e0580a454cfacf8bb15dca9c5b99e0aada13757b53d6551f1ad86c2ff` transferred 10,000 USDC base units from the burner to the challenge payee in block 46,306,281. Burner balance changed from 20.00 to 19.99 USDC.
+- **SUPPLIED BY MINER:** HTTP 200 JSON object with `verdict: out_of_coverage`, `risk_tier: insufficient_data`, `confidence: 0`, `coverage_complete: false`, `data_source: unavailable`, and a rationale explaining that no supported on-chain address or reviewed named case was supplied. The miner did not guess.
+- **NORMALIZED:** `FraudEvidence` preserves label `out_of_coverage`, confidence 0, the supplied rationale, and uncertainty markers `coverage_incomplete`, `data_source_unavailable`, and `insufficient_data`. Response schema classification: `MATCH`.
+- **UNAVAILABLE:** No positive fraud classification or supported factual risk signal was returned for the off-chain synthetic scenario. No such claim is inferred.
+- **VERIFIED LIVE:** Exactly 1 logical paid operation, 1 paid retry, 1 authorization flow, 1 settlement, 0 direct Nexora blockchain writes, and 0.01 USDC reportable cost. Execution stopped after Call 1.
