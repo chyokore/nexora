@@ -88,3 +88,20 @@ export interface FactCheckEvidence extends EvidenceBase { intent: "FACT_CHECK"; 
 export type DomainEvidence = FraudEvidence | UrlSafetyEvidence | OnchainTransactionEvidence | FactCheckEvidence;
 
 export type Conformance = "MATCH" | "COMPATIBLE_WITH_ADAPTER" | "MISMATCH" | "INVALID";
+
+export type EvidenceCoverage = "SUFFICIENT" | "PARTIAL" | "OUT_OF_COVERAGE" | "UNKNOWN";
+export type EvidenceVerification = "VERIFIED" | "PARTIALLY_VERIFIED" | "UNVERIFIED" | "CONTRADICTED" | "NOT_APPLICABLE";
+export type EvidenceQuality = "STRONG" | "USABLE" | "LIMITED" | "INSUFFICIENT" | "CONTRADICTED" | "INVALID";
+
+export interface EvidenceAssessment {
+  intent: DiscoveryIntent;
+  structuralValidity: Conformance;
+  coverage: EvidenceCoverage;
+  verification: EvidenceVerification;
+  providerConfidence?: number;
+  quality: EvidenceQuality;
+  reasons: string[];
+  uncertainties: string[];
+  contradictions: string[];
+  missingEvidence: string[];
+}
