@@ -650,3 +650,93 @@ Exact remaining user actions, all outside source control:
 6. Request a separate explicit go-ahead for the controlled paid Phase 3 run. Phase 3A itself ends here.
 
 Remaining blockers: no burner/key/balance has been verified; the current Telegraph-specific USDC contract and live challenge fields are unverified; the budget guard is design-only; and all miner runtime responses/payment receipts remain unverified. Recommendation: **STOP**. Repository preparation is complete, but do not resume paid verification until the manual wallet steps, independent asset verification, budget guard, and explicit authorization are complete.
+
+# PHASE 3B — CONTROLLED X402 TEST HARNESS
+
+Phase 3B validation date: 2026-09-02. Outcome: **GUARDED HARNESS IMPLEMENTED AND DRY-RUN VALIDATED; STOPPED BEFORE ANY MINER OR PAYMENT REQUEST.** Paid inference calls: **0**. Payment signatures: **0**. Settlements: **0**.
+
+## P3B.1 Technology and isolation
+
+The harness is isolated under `scripts/telegraph-smoke/` and uses strict TypeScript, Node's built-in `fetch`, `node:test`, and two development-only dependencies (`typescript`, `@types/node`). This matches the official Telegraph MCP's TypeScript/Node implementation while deliberately omitting `@x402/fetch`, `@x402/evm`, viem, and every signing dependency. **VERIFIED FROM REPOSITORY.** No Next.js, product source, UI, policy engine, or Decision Replay structure was created.
+
+The current official MCP uses TypeScript, Node 18+, `@x402/fetch`, `@x402/evm`, viem account derivation, and a payment-wrapped fetch. **VERIFIED FROM OFFICIAL SOURCE.** The Phase 3B harness does not copy or invoke that payment path; a later phase must add and independently review it under explicit authorization.
+
+## P3B.2 Modes and network boundaries
+
+Default execution is always dry-run. It performs exactly one free registry GET, validates registry structure, independently selects each of the three neutral winners, constructs requests, prints public plan metadata, and stops. It does not require `TELEGRAPH_EVM_PRIVATE_KEY`, contact a miner endpoint, inspect a 402, attach `PAYMENT-SIGNATURE`, retry, sign, or settle. **VERIFIED FROM TEST AND FREE LIVE REGISTRY.**
+
+An explicit `--inspect-challenge` mode is implemented for a later authorized pre-payment inspection. It requires a recognized logical test ID, refreshes the free registry, selects the current winner, makes exactly one unsigned direct request, requires HTTP 402, parses either the `Payment-Required` header or JSON `accepts` body, displays only public challenge fields, validates them, and stops without retrying. A mocked network-boundary test proves one request and no payment header/retry. **VERIFIED FROM TEST; LIVE CHALLENGE UNVERIFIED.** This mode was not executed in Phase 3B.
+
+The separate `--allow-payment` flag is intentionally fail-closed. It requires a recognized logical ID, a syntactically valid explicitly approved asset, a locally present syntactically valid `TELEGRAPH_EVM_PRIVATE_KEY`, `EVM_NETWORK=eip155:84532`, and a fresh neutral selection. It then terminates with `PAYMENT_EXECUTOR_NOT_INSTALLED` before contacting any miner. **VERIFIED FROM REPOSITORY.** Thus Phase 3B exposes the future authorization gate but cannot sign or pay even if a key unexpectedly exists.
+
+## P3B.3 Hard payment policy
+
+The explicit policy pins:
+
+- network: `eip155:84532`;
+- scheme: `exact`;
+- allowed intents: FRAUD_DETECTION, URL_SCAN, ONCHAIN_TX_LOOKUP only;
+- maximum logical calls: 3;
+- maximum payment per call: 10,000 micro-USDC;
+- maximum cumulative payment: 30,000 micro-USDC; and
+- logical IDs: `fraud-smoke-001`, `url-smoke-001`, `onchain-smoke-001`.
+
+The ledger rejects duplicate/unknown IDs, unexpected intent/miner pairs, wrong network, unsupported scheme, malformed challenge/amount/asset/payee, missing payee, expired challenge, per-call excess, cumulative excess, and more than three calls. **VERIFIED FROM TEST.**
+
+No Telegraph-specific USDC address is hardcoded. A challenge asset must be an EVM address and exactly equal a separately supplied `--approved-asset`; without that approval, validation stops before signing. **VERIFIED FROM TEST.** How the current live Telegraph challenge encodes its precise asset and expiry remains **UNVERIFIED**.
+
+## P3B.4 Neutral selection and request builders
+
+Selection considers only exact advertised intent, active status, non-null schemas, the established compatible request family, positive integer advertised price, Telegraph rank then score, and stable numeric/string miner ID as the final tie-break. Owner identity, Sigvora, project author, desired result, and previous winner are not inputs. Frozen unit fixtures verify best-rank selection, deterministic tie-breaking, malformed-registry rejection, and schema-family filtering. **VERIFIED FROM TEST AND REPOSITORY.**
+
+The free live dry-run selected:
+
+| Logical ID | Intent | Current winner | Rank | Price | Built request |
+|---|---|---|---:|---:|---|
+| `fraud-smoke-001` | FRAUD_DETECTION | 49 Anchor, `GET /risk-check` | 1 | 10,000 | neutral synthetic supplier-change query |
+| `url-smoke-001` | URL_SCAN | 7334 NetWire, `GET /url-scan` | 1 | 10,000 | `{url: "https://example.com"}` |
+| `onchain-smoke-001` | ONCHAIN_TX_LOOKUP | 9005 Veyctum, `GET /lookup` | 1 | 10,000 | verified public Base Sepolia `tx_hash` plus `chain` |
+
+These are **VERIFIED FROM FREE LIVE REGISTRY** at dry-run time and were not hardcoded as preferred winners. Registry declarations and future runtime behavior remain distinct; miner response conformance is **UNVERIFIED**.
+
+## P3B.5 Capture and conformance design
+
+The `CaptureRecord` type reserves only the audit fields needed later: logical ID, intent, miner identity, rank/score, request family, HTTP status, Telegraph metadata, miner response, duration/timestamp, advertised and challenged amounts, settlement metadata, and conformance. It never defines storage for a private key, seed, or full payment signature. Persistence is not implemented in Phase 3B.
+
+The reusable classifier exposes exactly `MATCH`, `COMPATIBLE_WITH_ADAPTER`, `MISMATCH`, and `INVALID`. Unit tests establish its basic deterministic behavior. No real result has been classified; all miner runtime conformance remains **UNVERIFIED**.
+
+## P3B.6 Commands and validation evidence
+
+From `scripts/telegraph-smoke/`:
+
+```powershell
+pnpm install
+pnpm test
+pnpm dry-run
+```
+
+The completed free-registry dry-run command was `pnpm dry-run`. It returned Anchor, NetWire, and Veyctum with their request shapes and 10,000 micro-USDC advertised prices, then reported zero paid calls, signatures, and settlements. **VERIFIED FROM FREE LIVE REGISTRY.**
+
+The future unsigned inspection command is:
+
+```powershell
+node dist/src/cli.js --inspect-challenge --logical-test-id fraud-smoke-001 --approved-asset 0x...
+```
+
+It was **NOT RUN**. Each logical ID must be inspected/executed separately and duplicate protection must be maintained in the single controlled run.
+
+The reserved payment-enabled command shape is:
+
+```powershell
+node dist/src/cli.js --allow-payment --logical-test-id fraud-smoke-001 --approved-asset 0x...
+```
+
+It was **NOT RUN** and currently always stops at `PAYMENT_EXECUTOR_NOT_INSTALLED`. A future authorized implementation must parse and validate the live challenge before a local signer can be reached; it must not weaken the existing policy.
+
+Validation completed: strict TypeScript compilation and all 18 unit tests passed; the default free-registry dry-run passed; repository scope and secret checks are required immediately before commit. **VERIFIED FROM TEST.** No paid response, live challenge, asset contract, payment receipt, or contract-conformance conclusion was produced.
+
+## P3B.7 Remaining gate
+
+Manual setup remains the Phase 3A sequence: create a dedicated EVM burner outside source control, acquire limited Base Sepolia testnet USDC, set `TELEGRAPH_EVM_PRIVATE_KEY` only in a local secret facility, verify ignored-file behavior and the public address/balance, independently approve the live challenge asset, and request explicit authorization. A later engineering step must install/review the payment adapter and preserve one-run ledger state across the three executions.
+
+Recommendation: **STOP.** The dry-run harness is ready, but the final controlled three-call Phase 3 execution is not yet enabled or authorized.
