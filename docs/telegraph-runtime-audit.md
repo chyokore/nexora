@@ -561,3 +561,92 @@ Without live paid results, no Phase 2 domain can be promoted or removed based on
 Remaining blockers are a securely configured dedicated burner, live network/token/challenge confirmation, sufficient test USDC, public Base Sepolia transaction selection, three runtime responses, contract conformance classifications, and cost/settlement metadata capture.
 
 **STOP.** Securely configure and fund the burner, then explicitly resume this Phase 3 test. Do not scaffold or implement Nexora before the three controlled calls either pass or produce a documented architecture change.
+
+# PHASE 3A — PAYMENT ENVIRONMENT PREPARATION
+
+Phase 3A evidence timestamp: 2026-09-02T15:48:52.3010999Z. Outcome: **PREPARED, THEN STOPPED BEFORE PAID EXECUTION.** No inference request, 402 challenge, payment authorization, signature, settlement, wallet creation, wallet funding, or application implementation occurred.
+
+## P3A.1 Current official EVM/x402 configuration
+
+The current Telegraph MCP configuration and x402 client source establish the following:
+
+| Setting | Status for Nexora's EVM path | Evidence |
+|---|---|---|
+| `TELEGRAPH_EVM_PRIVATE_KEY` | **Required**; a `0x`-prefixed 32-byte hexadecimal EVM private key | **VERIFIED FROM OFFICIAL SOURCE** |
+| `TELEGRAPH_NODE_URL` | Required for the remote Telegraph deployment used here; code default is local `http://localhost:${NODE_PORT or 7044}` | **VERIFIED FROM OFFICIAL SOURCE** |
+| `TELEGRAPH_ENGINE_URL` | Required for the remote deployment; code default is local `http://localhost:${ENGINE_PORT or 8080}` | **VERIFIED FROM OFFICIAL SOURCE** |
+| `TELEGRAPH_DAEMON_URL` | Required for the remote deployment; code default is local `http://localhost:${DAEMON_PORT or 8081}` | **VERIFIED FROM OFFICIAL SOURCE** |
+| `EVM_NETWORK` | Optional in the MCP; default `eip155:*`. Nexora explicitly uses `eip155:84532` to constrain this test to Base Sepolia | default **VERIFIED FROM OFFICIAL SOURCE**; explicit constraint **INFERRED** from CAIP-2 plus verified chain ID |
+| `REFRESH_INTERVAL_MS` | Optional; default 300,000 ms | **VERIFIED FROM OFFICIAL SOURCE**; unnecessary for this preparation |
+| `TELEGRAPH_SOLANA_PRIVATE_KEY`, `SVM_NETWORK` | Not required for the selected EVM-only path | **VERIFIED FROM OFFICIAL SOURCE** |
+
+The public remote service URLs remain `http://13.237.89.59:7044` (Node), `http://13.237.89.59:8080` (Engine), and `http://13.237.89.59:8081` (Daemon). Their role and variable names are **VERIFIED FROM OFFICIAL SOURCE**; the Node registry was also **VERIFIED FROM LIVE REGISTRY** in this phase. Runtime availability of every service at future execution time remains **UNVERIFIED**.
+
+The MCP uses `@x402/fetch` with `@x402/evm`; it passes the configured key to viem's `privateKeyToAccount`, deriving the public wallet address locally. Exact-scheme EVM payment authorization is signed inside the local MCP process, not by the miner and not by the language model. **VERIFIED FROM OFFICIAL SOURCE.** Official MCP guidance recommends a dedicated burner wallet containing only enough USDC for intended calls. The key must never be shown to the agent/model. **VERIFIED FROM OFFICIAL SOURCE.**
+
+Sources: [Telegraph MCP configuration](https://github.com/telegraphprotocol/telegraph-mcp/blob/main/src/config.ts), [Telegraph MCP repository and setup guidance](https://github.com/telegraphprotocol/telegraph-mcp), [Telegraph authentication documentation](https://github.com/telegraphprotocol/telegraph-api-docs/blob/main/docs/overview/authentication.md), [miner-dispatcher OpenAPI](https://github.com/telegraphprotocol/telegraph-api-docs/blob/main/openapi/miner-dispatcher.yaml), and [x402 v1 specification](https://github.com/x402-foundation/x402/blob/main/specs/x402-specification-v1.md).
+
+## P3A.2 Network, asset, gas, and settlement
+
+- Base Sepolia is Telegraph's documented default test network; its chain ID is **84532**, and its CAIP-2 identifier is `eip155:84532`. The first two facts are **VERIFIED FROM OFFICIAL SOURCE**; the CAIP-2 composition is **INFERRED** from the standard namespace and chain ID. A future live 402 challenge remains authoritative.
+- USDC with six decimal places is the documented payment asset, and the dispatcher documentation describes Base Sepolia/Solana Devnet payment requirements. **VERIFIED FROM OFFICIAL SOURCE.** Whether every currently reachable Telegraph miner will challenge on Base Sepolia is **UNVERIFIED** until an unsigned request is separately authorized.
+- The x402 specification gives `0x036CbD53842c5426634e7929541eC2318f3dCF7e` as its Base Sepolia USDC example. This is **VERIFIED FROM OFFICIAL x402 SOURCE**, but a current Telegraph-specific asset contract was not independently specified in the inspected Telegraph source. Therefore Nexora records the Telegraph payment contract as **UNVERIFIED** and must compare the future challenge's `asset` rather than hardcode this address.
+- The EVM `exact` flow signs an EIP-712/EIP-3009 `TransferWithAuthorization`. The facilitator verifies the authorization and submits settlement on-chain. The payer therefore does not broadcast the settlement transaction and does not require native ETH for gas for this x402 exact/facilitated payment itself. **VERIFIED FROM OFFICIAL x402 SOURCE.** A small Base Sepolia ETH balance is optional for unrelated manual wallet transactions, not required for the three payments as designed.
+- The future 402 challenge is authoritative for version/scheme, network, asset, amount, payee (`payTo`), and validity window. No such challenge was requested in Phase 3A, so those live values remain **UNVERIFIED**.
+
+## P3A.3 Burner wallet and funding boundary
+
+Outside source control, the user must create or import a newly dedicated EVM burner wallet, select Base Sepolia, and obtain Base Sepolia testnet USDC through a reputable testnet faucet or other legitimate testnet source. Official material supports a dedicated burner and minimal balance; the exact faucet is not prescribed. Never reuse a primary wallet and never send its key through Codex, ChatGPT, an issue, or a commit.
+
+The three currently selected registrations each advertise 10,000 micro-USDC, so nominal inference cost is 30,000 micro-USDC ($0.03). **VERIFIED FROM LIVE REGISTRY** for advertised amounts; final charges remain **UNVERIFIED** until live challenges. Recommended funding is **0.05 testnet USDC**: enough for the nominal three calls plus 0.02 buffer, while limiting exposure. This balance recommendation is **INFERRED**. Native Base Sepolia ETH is not required for facilitated exact-scheme x402 settlement, as above.
+
+Supply the key locally as `TELEGRAPH_EVM_PRIVATE_KEY`, preferably through the process secret store/environment. An ignored `.env.local` is an acceptable fallback for local tooling that explicitly loads it. Never populate `.env.example`. Before any future run, verify `git check-ignore .env.local` and inspect only the variable's presence and derived public address—never print the value.
+
+## P3A.4 Future three-call budget guard (design only)
+
+No script was necessary to validate repository configuration, so none was created. Immediately before any future signing, a tiny test-only wrapper must parse and structurally validate the 402 challenge, then enforce all of these invariants:
+
+1. exactly one supported `exact` EVM requirement is selected, with the expected x402 version;
+2. network equals `eip155:84532` (or an officially equivalent value explicitly approved before the run);
+3. asset equals the independently verified Base Sepolia USDC contract;
+4. amount is at most 10,000 micro-USDC per call and cumulative authorized amount is at most 30,000 micro-USDC across no more than three logical calls;
+5. the requested intent sequence is exactly one each of FRAUD_DETECTION, URL_SCAN, and ONCHAIN_TX_LOOKUP;
+6. `payTo` is a valid address obtained unchanged from the legitimate Telegraph response, with the challenged resource bound to the intended request; and
+7. malformed, ambiguous, expired, duplicate, unsupported-scheme, wrong-network, wrong-token, excessive-price, or unexpected-payee challenges fail closed without signing.
+
+If a current registry price or legitimate challenge exceeds either cap, stop for explicit re-approval; do not consume the 0.02 funding buffer automatically. The wrapper should persist challenge hashes, per-call/cumulative counters, and settlement receipts without secrets. This guard is **INFERRED DESIGN**, not implemented or runtime-verified.
+
+## P3A.5 Fresh neutral registry re-check
+
+**VERIFIED FROM LIVE REGISTRY:** A free `GET http://13.237.89.59:7044/miner-dispatcher/integrations` returned 129 registrations at 2026-09-02T15:48:52.3010999Z. The Phase 3 ownership-blind rule was reapplied: exact intent, active, compatible schema family, usable advertised price, best Telegraph rank, then stable miner ID.
+
+| Intended call | Eligible neutral winner | Rank / advertised price | Result |
+|---|---|---|---|
+| FRAUD_DETECTION query-only | Miner 49, Anchor (`GET /risk-check`) | 1 / 10,000 micro-USDC | unchanged; planned only |
+| URL_SCAN declared-URL synchronous | Miner 7334, NetWire (`GET /url-scan`) | 1 / 10,000 micro-USDC | unchanged; planned only |
+| ONCHAIN_TX_LOOKUP true transaction | Miner 9005, Veyctum (`GET /lookup`) | 1 / 10,000 micro-USDC | unchanged; planned only |
+
+All 15 FRAUD_DETECTION, 10 URL_SCAN, and 12 ONCHAIN_TX_LOOKUP registrations were active. No inference endpoint was called. Eligibility describes advertised registry contracts, not runtime conformance.
+
+Sigvora remains registered as **Miner 251**, active, FRAUD_DETECTION, rank 8, score 0, price 10,000, with both input and output schemas `null`. **VERIFIED FROM LIVE REGISTRY.** The project-note reference to Miner 315 remains unresolved and **UNVERIFIED**. Sigvora is excluded from the schema-qualified pool by the same rule as every schema-less miner; no special selection, traffic, registration change, or paid investigation occurred.
+
+## P3A.6 Public on-chain test input
+
+Selected transaction: [`0xc4a5412de985341556be1c248e2dbd3ad93a2b1d3847105147dd68a41de7c998`](https://sepolia.basescan.org/tx/0xc4a5412de985341556be1c248e2dbd3ad93a2b1d3847105147dd68a41de7c998).
+
+**VERIFIED FROM PUBLIC CHAIN DATA:** BaseScan labels it a Base Sepolia testnet transaction, status `Success`, block 12,513,392, confirmed by the sequencer, timestamp 2024-07-12T14:37:52Z, value 0 ETH. It is a long-confirmed, public, zero-value contract-creation transaction unrelated to Nexora or the project author, so it is stable and harmless as a lookup-only input. It was not sent to Telegraph.
+
+## P3A.7 Repository secret safety and manual gate
+
+**VERIFIED FROM REPOSITORY:** `.gitignore` already excludes `.env`, `.env.local`, `.env.*.local`, dependency/build outputs (`node_modules/`, `.next/`, `dist/`, `build/`, `coverage/`), and logs. No change was needed. The public `.env.example` contains only public URLs, an empty key field, and the public network identifier. No application or Sigvora files were created or modified.
+
+Exact remaining user actions, all outside source control:
+
+1. Create/import a new dedicated EVM burner wallet without sharing its seed or private key in chat.
+2. Select Base Sepolia (chain ID 84532).
+3. Obtain at least 0.05 Base Sepolia testnet USDC from a reputable testnet source; do not fund it with production assets. No ETH is required for the facilitated exact x402 payments.
+4. Set `TELEGRAPH_EVM_PRIVATE_KEY` locally in a process secret store/environment, or in an ignored `.env.local` if the future runner loads it. Use a `0x`-prefixed 64-hex-character value; never edit `.env.example` with the real key.
+5. Confirm `.env.local` is ignored, derive only the public address locally, verify its network/token balance, and independently confirm the challenge asset contract before authorizing any signature.
+6. Request a separate explicit go-ahead for the controlled paid Phase 3 run. Phase 3A itself ends here.
+
+Remaining blockers: no burner/key/balance has been verified; the current Telegraph-specific USDC contract and live challenge fields are unverified; the budget guard is design-only; and all miner runtime responses/payment receipts remain unverified. Recommendation: **STOP**. Repository preparation is complete, but do not resume paid verification until the manual wallet steps, independent asset verification, budget guard, and explicit authorization are complete.
