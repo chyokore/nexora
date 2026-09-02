@@ -1,4 +1,4 @@
-import { INTENTS, type Intent, type PaymentChallenge, type Selection } from "./types.js";
+import { PAID_INTENTS, type Intent, type PaymentChallenge, type Selection } from "./types.js";
 
 export const PAYMENT_POLICY = Object.freeze({
   network: "eip155:84532",
@@ -22,7 +22,7 @@ export class RunLedger {
   authorize(logicalTestId: string, intent: Intent, selection: Selection, challenge: PaymentChallenge, approvedAsset?: string): number {
     if (!Object.values({ FRAUD_DETECTION: "fraud-smoke-001", URL_SCAN: "url-smoke-001", ONCHAIN_TX_LOOKUP: "onchain-smoke-001" }).includes(logicalTestId)) throw new Error("Unknown logical test ID");
     if (this.#used.has(logicalTestId)) throw new Error("Duplicate logical test ID");
-    if (!INTENTS.includes(intent)) throw new Error("Unexpected intent");
+    if (!PAID_INTENTS.includes(intent)) throw new Error("Unexpected intent");
     if (!selection.miner.supported_intents.includes(intent)) throw new Error("Unexpected selected miner");
     validateChallenge(challenge, approvedAsset);
     const amount = parseAmount(challenge.amount);
@@ -46,6 +46,7 @@ export function parseAmount(value: string | number): number {
 export function validateChallenge(challenge: PaymentChallenge, approvedAsset?: string, now = Date.now()): void {
   if (!challenge || typeof challenge !== "object") throw new Error("Malformed payment challenge");
   if (challenge.scheme !== PAYMENT_POLICY.scheme) throw new Error("Unsupported payment scheme");
+  if (challenge.x402Version !== undefined && challenge.x402Version !== 1 && challenge.x402Version !== 2) throw new Error("Unsupported x402 version");
   if (challenge.network !== PAYMENT_POLICY.network) throw new Error("Wrong payment network");
   if (!EVM_ADDRESS.test(challenge.asset ?? "")) throw new Error("Malformed asset identifier");
   if (!approvedAsset) throw new Error("Asset approval required before signing");

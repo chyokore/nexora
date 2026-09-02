@@ -1,5 +1,7 @@
-export const INTENTS = ["FRAUD_DETECTION", "URL_SCAN", "ONCHAIN_TX_LOOKUP"] as const;
-export type Intent = (typeof INTENTS)[number];
+export const PAID_INTENTS = ["FRAUD_DETECTION", "URL_SCAN", "ONCHAIN_TX_LOOKUP"] as const;
+export const DISCOVERY_INTENTS = [...PAID_INTENTS, "FACT_CHECK", "NEWS_SEARCH"] as const;
+export type Intent = (typeof PAID_INTENTS)[number];
+export type DiscoveryIntent = (typeof DISCOVERY_INTENTS)[number];
 
 export interface JsonSchema {
   properties?: Record<string, { type?: string | string[] }>;
@@ -56,7 +58,13 @@ export interface CaptureRecord {
   registryRank: number;
   registryScore: number;
   requestSchemaFamily: string;
-  httpStatus?: number;
+  endpoint: string;
+  requestContract: string;
+  httpStatusSequence: number[];
+  paymentNetwork?: string;
+  paymentAsset?: string;
+  authorizedAmount?: number;
+  reportedCost?: number;
   telegraphResponseMetadata?: unknown;
   minerResponse?: unknown;
   durationMs?: number;
@@ -64,7 +72,17 @@ export interface CaptureRecord {
   advertisedPrice: number;
   actualChallengeAmount?: number;
   settlementMetadata?: unknown;
+  settlementOccurred: boolean;
+  normalizedEvidence?: DomainEvidence;
+  errors: string[];
   conformance?: Conformance;
 }
+
+export interface EvidenceBase { sourceMinerId: string; sourceMinerName: string; intent: DiscoveryIntent; validationStatus: Conformance; confidence?: number; uncertainty: string[]; unavailableFields: string[]; }
+export interface FraudEvidence extends EvidenceBase { intent: "FRAUD_DETECTION"; label?: string; reason?: string; }
+export interface UrlSafetyEvidence extends EvidenceBase { intent: "URL_SCAN"; verdict?: string; reachable?: boolean; }
+export interface OnchainTransactionEvidence extends EvidenceBase { intent: "ONCHAIN_TX_LOOKUP"; transactionStatus?: string; blockNumber?: number; }
+export interface FactCheckEvidence extends EvidenceBase { intent: "FACT_CHECK"; verdict?: string; sources?: unknown[]; }
+export type DomainEvidence = FraudEvidence | UrlSafetyEvidence | OnchainTransactionEvidence | FactCheckEvidence;
 
 export type Conformance = "MATCH" | "COMPATIBLE_WITH_ADAPTER" | "MISMATCH" | "INVALID";

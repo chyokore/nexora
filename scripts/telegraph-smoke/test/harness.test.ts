@@ -6,6 +6,8 @@ import { PAYMENT_POLICY, RunLedger, validateChallenge } from "../src/policy.js";
 import { buildRequest, TEST_IDS } from "../src/requests.js";
 import { selectMiner } from "../src/selection.js";
 import { inspectUnsignedChallenge } from "../src/transport.js";
+import { normalizeEvidence } from "../src/normalization.js";
+import { requireExecutionEnvironment, sanitizeForOutput } from "../src/payment-adapter.js";
 import type { Intent, Miner, PaymentChallenge } from "../src/types.js";
 
 const ASSET = "0x1111111111111111111111111111111111111111";
@@ -31,13 +33,14 @@ test("malformed challenge is rejected", () => assert.throws(() => parseChallenge
 test("missing payee is rejected", () => assert.throws(() => validateChallenge(challenge({ payTo: "" }), ASSET), /payee/));
 test("duplicate logical test is rejected", () => { const ledger = new RunLedger(); const s = selection("FRAUD_DETECTION"); ledger.authorize(TEST_IDS.FRAUD_DETECTION, "FRAUD_DETECTION", s, challenge(), ASSET); assert.throws(() => ledger.authorize(TEST_IDS.FRAUD_DETECTION, "FRAUD_DETECTION", s, challenge(), ASSET), /Duplicate/); });
 test("asset must be explicitly approved", () => assert.throws(() => validateChallenge(challenge()), /Asset approval/));
+test("unexpected asset is rejected", () => assert.throws(() => validateChallenge(challenge(), "0x3333333333333333333333333333333333333333"), /Unsupported payment asset/));
 test("malformed asset is rejected", () => assert.throws(() => validateChallenge(challenge({ asset: "USDC" }), ASSET), /Malformed asset/));
 test("expired challenge is rejected", () => assert.throws(() => validateChallenge(challenge({ validUntil: 1 }), ASSET), /Expired/));
 test("request builders match all three schema families", () => { assert.ok("query" in buildRequest("FRAUD_DETECTION", selection("FRAUD_DETECTION").miner)); assert.deepEqual(buildRequest("URL_SCAN", selection("URL_SCAN").miner), { url: "https://example.com" }); assert.ok("tx_hash" in buildRequest("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP").miner)); });
 test("dry-run architecture has no signer dependency", async () => { const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/cli.js", import.meta.url), "utf8")); assert.doesNotMatch(source, /wrapFetchWithPayment|privateKeyToAccount|PAYMENT-SIGNATURE/); });
 test("unsigned inspection sends exactly one request and never retries with payment", async () => {
   let calls = 0;
-  const mockFetch = async (_input: string | URL, init?: RequestInit): Promise<Response> => {
+  const mockFetch = async (_input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     calls += 1;
     assert.equal(new Headers(init?.headers).has("payment-signature"), false);
     return new Response(JSON.stringify({ accepts: [challenge()] }), { status: 402, headers: { "content-type": "application/json" } });
@@ -47,3 +50,12 @@ test("unsigned inspection sends exactly one request and never retries with payme
   assert.equal(calls, 1);
 });
 test("conformance helper returns only declared states", () => { assert.equal(classifyConformance({ answer: "ok" }, { required: ["answer"] }), "MATCH"); assert.equal(classifyConformance({}, { required: ["answer"] }, true), "COMPATIBLE_WITH_ADAPTER"); assert.equal(classifyConformance({ other: true }, { required: ["answer"] }), "INVALID"); });
+test("missing private key fails before signer initialization", () => assert.throws(() => requireExecutionEnvironment({ EVM_NETWORK: PAYMENT_POLICY.network }, ASSET), /PRIVATE_KEY/));
+test("execution environment rejects wrong network", () => assert.throws(() => requireExecutionEnvironment({ TELEGRAPH_EVM_PRIVATE_KEY: `0x${"1".repeat(64)}`, EVM_NETWORK: "eip155:1" }, ASSET), /84532/));
+test("schema incompatibility excludes a miner", () => { const bad = miner("1", "FRAUD_DETECTION", 1, ["address"]); assert.throws(() => selectMiner([bad], "FRAUD_DETECTION"), /No eligible/); });
+test("Sigvora receives no special treatment", () => { const sigvora = miner("251", "FRAUD_DETECTION", 1, []); sigvora.name = "Sigvora"; const neutral = miner("49", "FRAUD_DETECTION", 2, ["query"]); assert.equal(selectMiner([sigvora, neutral], "FRAUD_DETECTION").miner.id, "49"); });
+test("normalization preserves missing confidence", () => { const value = normalizeEvidence("FRAUD_DETECTION", selection("FRAUD_DETECTION"), { label: "review" }, "MATCH"); assert.equal("confidence" in value, false); assert.deepEqual(value.unavailableFields, ["confidence"]); });
+test("normalization keeps domains distinct", () => { const value = normalizeEvidence("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP"), { status: "confirmed", block_number: 7 }, "MATCH"); assert.equal(value.intent, "ONCHAIN_TX_LOOKUP"); assert.equal("label" in value, false); });
+test("sanitized output removes secrets and signatures", () => { const secret = `0x${"a".repeat(64)}`; const output = sanitizeForOutput({ privateKey: secret, "payment-signature": secret }); assert.doesNotMatch(output, new RegExp("a{64}")); assert.match(output, /redacted/); });
+test("unexpected redirects are rejected before payment", async () => { const redirected = async () => new Response(null, { status: 302, headers: { location: "https://evil.invalid" } }); await assert.rejects(() => inspectUnsignedChallenge("http://registry.test", selection("URL_SCAN"), { url: "https://example.com" }, redirected), /redirect/); });
+test("CLI initializes paid adapter only behind explicit execution branch", async () => { const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/cli.js", import.meta.url), "utf8")); assert.match(source, /if \(values\["execute-paid"\]\)/); assert.match(source, /requireExecutionEnvironment/); });
