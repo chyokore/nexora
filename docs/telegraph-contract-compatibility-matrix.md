@@ -89,3 +89,5 @@ Most transaction-family outputs provide factual transaction state, not fraud con
 | ONCHAIN_TX_LOOKUP | HETEROGENEOUS | `hash` 6/12 or `tx_hash` 5/12 | no | viable conditional factual domain with alias adapters |
 
 No inspected intent has one universal wire contract. `supported_intents` is routing/scoring metadata, not a guarantee of identical request or response schemas.
+
+Endpoint intent compatibility is a separate eligibility layer. The live registry exposes endpoint `path`, `method`, and optional `description`, but no dedicated endpoint-intent field. Nexora therefore honors an unambiguous canonical intent token in the description first, then narrowly scoped path/description evidence; ambiguous or unassociated endpoints are excluded. Miner-level schema compatibility does not make every endpoint on that miner compatible with every advertised intent.

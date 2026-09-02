@@ -4,7 +4,7 @@ import { parseChallenge } from "../src/challenge.js";
 import { classifyConformance } from "../src/conformance.js";
 import { PAYMENT_POLICY, RunLedger, validateChallenge } from "../src/policy.js";
 import { buildRequest, TEST_IDS } from "../src/requests.js";
-import { selectMiner } from "../src/selection.js";
+import { compatibleEndpoints, endpointCompatible, selectMiner } from "../src/selection.js";
 import { inspectUnsignedChallenge } from "../src/transport.js";
 import { normalizeEvidence } from "../src/normalization.js";
 import { requireExecutionEnvironment, sanitizeForOutput } from "../src/payment-adapter.js";
@@ -15,7 +15,7 @@ const PAYEE = "0x2222222222222222222222222222222222222222";
 const challenge = (overrides: Partial<PaymentChallenge> = {}): PaymentChallenge => ({ scheme: "exact", network: PAYMENT_POLICY.network, asset: ASSET, amount: 10_000, payTo: PAYEE, validUntil: Math.floor(Date.now() / 1000) + 300, ...overrides });
 const miner = (id: string, intent: Intent, rank: number, properties: string[], required: string[] = []): Miner => ({
   id, name: `Miner ${id}`, activation_status: "active", min_price_usdc: 10_000, supported_intents: [intent],
-  endpoints: [{ method: "GET", path: intent === "FRAUD_DETECTION" ? "/risk-check" : intent === "URL_SCAN" ? "/url-scan" : "/lookup" }],
+  endpoints: [{ method: "GET", path: intent === "FRAUD_DETECTION" ? "/risk-check" : intent === "URL_SCAN" ? "/url-scan" : "/lookup", description: `${intent}. Test endpoint.` }],
   input_schema: { properties: Object.fromEntries(properties.map((key) => [key, { type: "string" }])), required }, output_schema: { properties: {} },
   scores: [{ intent_id: intent, rank, score: 1 }],
 });
@@ -53,6 +53,14 @@ test("conformance helper returns only declared states", () => { assert.equal(cla
 test("missing private key fails before signer initialization", () => assert.throws(() => requireExecutionEnvironment({ EVM_NETWORK: PAYMENT_POLICY.network }, ASSET), /PRIVATE_KEY/));
 test("execution environment rejects wrong network", () => assert.throws(() => requireExecutionEnvironment({ TELEGRAPH_EVM_PRIVATE_KEY: `0x${"1".repeat(64)}`, EVM_NETWORK: "eip155:1" }, ASSET), /84532/));
 test("schema incompatibility excludes a miner", () => { const bad = miner("1", "FRAUD_DETECTION", 1, ["address"]); assert.throws(() => selectMiner([bad], "FRAUD_DETECTION"), /No eligible/); });
+test("wrong-intent endpoint is rejected despite compatible miner schema", () => assert.equal(endpointCompatible({ method: "GET", path: "/transaction/lookup", description: "ONCHAIN_TX_LOOKUP. This is not a fraud endpoint." }, "FRAUD_DETECTION"), false));
+test("same miner evaluates its explicitly associated fraud endpoint", () => { const value = miner("10002", "FRAUD_DETECTION", 1, ["query"], ["query"]); value.endpoints = [{ method: "GET", path: "/transaction/lookup", description: "ONCHAIN_TX_LOOKUP. Transaction lookup." }, { method: "GET", path: "/anomaly/check", description: "FRAUD_DETECTION. Assess a supplied query." }]; assert.equal(selectMiner([value], "FRAUD_DETECTION").endpoint.path, "/anomaly/check"); });
+test("correct endpoint intent with unsatisfied required schema is rejected", () => { const value = miner("7", "FRAUD_DETECTION", 1, ["query", "address"], ["query", "address"]); assert.throws(() => selectMiner([value], "FRAUD_DETECTION"), /No eligible/); });
+test("correct endpoint intent with satisfiable schema is eligible", () => assert.equal(selectMiner([miner("7", "FRAUD_DETECTION", 1, ["query"], ["query"])], "FRAUD_DETECTION").miner.id, "7"));
+test("multi-endpoint compatibility does not leak between endpoints", () => { const value = miner("8", "FRAUD_DETECTION", 1, ["query"]); value.endpoints = [{ method: "GET", path: "/tx", description: "ONCHAIN_TX_LOOKUP. Lookup." }, { method: "POST", path: "/risk", description: "FRAUD_DETECTION. Assess." }]; assert.deepEqual(compatibleEndpoints(value, "FRAUD_DETECTION").map((endpoint) => endpoint.path), ["/risk"]); });
+test("rank still determines winner after endpoint filtering", () => { const wrong = miner("1", "FRAUD_DETECTION", 1, ["query"]); wrong.endpoints = [{ method: "GET", path: "/tx", description: "ONCHAIN_TX_LOOKUP. Lookup." }]; const eligible = miner("2", "FRAUD_DETECTION", 2, ["query"]); assert.equal(selectMiner([wrong, eligible], "FRAUD_DETECTION").miner.id, "2"); });
+test("stable endpoint tie-break is deterministic", () => { const value = miner("9", "FRAUD_DETECTION", 1, ["query"]); value.endpoints = [{ method: "POST", path: "/risk/z", description: "FRAUD_DETECTION. Z." }, { method: "GET", path: "/risk/a", description: "FRAUD_DETECTION. A." }]; assert.equal(selectMiner([value], "FRAUD_DETECTION").endpoint.path, "/risk/a"); });
+test("endpoint intent logic contains no owner or miner-specific identifiers", async () => { const source = await import("node:fs/promises").then((fs) => fs.readFile(new URL("../src/selection.js", import.meta.url), "utf8")); assert.doesNotMatch(source, /DegenLens|Sigvora|10002|251/); });
 test("Sigvora receives no special treatment", () => { const sigvora = miner("251", "FRAUD_DETECTION", 1, []); sigvora.name = "Sigvora"; const neutral = miner("49", "FRAUD_DETECTION", 2, ["query"]); assert.equal(selectMiner([sigvora, neutral], "FRAUD_DETECTION").miner.id, "49"); });
 test("normalization preserves missing confidence", () => { const value = normalizeEvidence("FRAUD_DETECTION", selection("FRAUD_DETECTION"), { label: "review" }, "MATCH"); assert.equal("confidence" in value, false); assert.deepEqual(value.unavailableFields, ["confidence"]); });
 test("normalization keeps domains distinct", () => { const value = normalizeEvidence("ONCHAIN_TX_LOOKUP", selection("ONCHAIN_TX_LOOKUP"), { status: "confirmed", block_number: 7 }, "MATCH"); assert.equal(value.intent, "ONCHAIN_TX_LOOKUP"); assert.equal("label" in value, false); });

@@ -9,6 +9,30 @@ function requiredSubset(miner: Miner, allowed: string[]): boolean {
   return (miner.input_schema?.required ?? []).every((field) => allowed.includes(field));
 }
 
+const DECLARED_INTENT = /\b(FRAUD_DETECTION|URL_SCAN|ONCHAIN_TX_LOOKUP|FACT_CHECK|NEWS_SEARCH)\b/g;
+
+export function endpointCompatible(endpoint: Endpoint, intent: DiscoveryIntent): boolean {
+  if (!/^(GET|POST)$/i.test(endpoint.method) || !endpoint.path.startsWith("/")) return false;
+
+  const description = endpoint.description ?? "";
+  const declarations = [...new Set(description.match(DECLARED_INTENT) ?? [])];
+  if (declarations.length > 0) return declarations.length === 1 && declarations[0] === intent;
+
+  const path = endpoint.path.toLowerCase();
+  if (intent === "FRAUD_DETECTION") return /(?:^|[\/_-])(fraud|risk|anomaly|assess)(?:$|[\/_-])/.test(path);
+  if (intent === "URL_SCAN") return /(?:^|[\/_-])urls?(?:$|[\/_-])|urlscan/.test(path) || (/(?:^|[\/_-])(scan|check)(?:$|[\/_-])/.test(path) && /\burl\b/i.test(description));
+  if (intent === "ONCHAIN_TX_LOOKUP") return /(?:^|[\/_-])(tx|transaction)(?:$|[\/_-])/.test(path) || /\b(?:transaction hash|on-chain transaction)\b/i.test(description);
+  if (intent === "FACT_CHECK") return /(?:^|[\/_-])(fact|verify|proof)(?:$|[\/_-])/.test(path) || /\bfact[ -]?check\b/i.test(description);
+  return /(?:^|[\/_-])(news|headlines)(?:$|[\/_-])/.test(path) || /\bnews (?:search|articles|headlines)\b/i.test(description);
+}
+
+export function compatibleEndpoints(miner: Miner, intent: DiscoveryIntent): Endpoint[] {
+  return miner.endpoints
+    .filter((endpoint) => endpointCompatible(endpoint, intent))
+    .map((endpoint) => ({ ...endpoint, method: endpoint.method.toUpperCase() }))
+    .sort((left, right) => left.path.localeCompare(right.path) || left.method.localeCompare(right.method));
+}
+
 export function compatible(miner: Miner, intent: DiscoveryIntent): boolean {
   if (miner.activation_status !== "active" || !Number.isInteger(miner.min_price_usdc) || miner.min_price_usdc <= 0) return false;
   if (!miner.input_schema || !miner.output_schema || !miner.supported_intents.includes(intent)) return false;
@@ -19,21 +43,6 @@ export function compatible(miner: Miner, intent: DiscoveryIntent): boolean {
 
   const identifier = ["tx_hash", "hash", "txHash"].some((field) => isStringProperty(miner, field));
   return identifier && requiredSubset(miner, ["tx_hash", "hash", "txHash", "chain", "chainId", "query"]);
-}
-
-function endpointFor(miner: Miner, intent: DiscoveryIntent): Endpoint {
-  const patterns: Record<DiscoveryIntent, RegExp> = {
-    FRAUD_DETECTION: /fraud|risk|anomaly|assess/i,
-    URL_SCAN: /url|scan/i,
-    ONCHAIN_TX_LOOKUP: /transaction|tx|lookup/i,
-    FACT_CHECK: /fact|check|verify|search/i,
-    NEWS_SEARCH: /news|search/i,
-  };
-  const endpoint = miner.endpoints.find((item) => patterns[intent].test(`${item.path} ${item.description ?? ""}`));
-  if (!endpoint || !/^(GET|POST)$/i.test(endpoint.method) || !endpoint.path.startsWith("/")) {
-    throw new Error(`Malformed registry result for miner ${miner.id}: no compatible endpoint`);
-  }
-  return { method: endpoint.method.toUpperCase(), path: endpoint.path };
 }
 
 function stableIdCompare(left: string, right: string): number {
@@ -51,8 +60,8 @@ export function eligibleSelections(registry: unknown, intent: DiscoveryIntent): 
 
   eligible.sort((a, b) => a.score.rank - b.score.rank || b.score.score - a.score.score || stableIdCompare(a.miner.id, b.miner.id));
   return eligible.flatMap((winner) => {
-    try { return [{ ...winner, endpoint: endpointFor(winner.miner, intent), schemaFamily: intent === "URL_SCAN" ? "declared-url" : intent === "ONCHAIN_TX_LOOKUP" ? "transaction-identifier" : "query-only" }]; }
-    catch { return []; }
+    const endpoint = compatibleEndpoints(winner.miner, intent)[0];
+    return endpoint ? [{ ...winner, endpoint, schemaFamily: intent === "URL_SCAN" ? "declared-url" : intent === "ONCHAIN_TX_LOOKUP" ? "transaction-identifier" : "query-only" }] : [];
   });
 }
 

@@ -14,3 +14,10 @@ Timestamp: `2026-09-02T19:31:44.255Z`
 - **VERIFIED LIVE:** Payment signatures 0; paid retries 0; settlements 0; blockchain writes 0.
 
 Execution stopped before authorization. The challenge asset has not been approved.
+
+## Phase 5B.1: endpoint-intent correction
+
+- **VERIFIED LIVE:** At `2026-09-02T19:49:42.841Z`, the dispatcher returned 129 registrations and 15 FRAUD_DETECTION miners. Fifteen individual endpoints had explicit or narrow intent-compatible evidence; 6 miners had satisfiable supplier-query schemas; 6 remained finally eligible.
+- **VERIFIED LIVE:** Neutral rank/score still selected DegenLens miner `10002`, but now selected `GET /anomaly/check`, whose description explicitly declares `FRAUD_DETECTION`.
+- **VERIFIED LIVE:** DegenLens `GET` and `POST /transaction/lookup` were rejected for FRAUD_DETECTION because their descriptions explicitly declare `ONCHAIN_TX_LOOKUP`; `GET` and `POST /anomaly/check` were independently accepted.
+- **INFERRED AND TESTED LOCALLY:** Endpoint `path`, `method`, and optional `description` are the only endpoint-level registry fields observed. Nexora treats miner intent eligibility, endpoint intent association, and shared-schema satisfiability as separate gates. No miner endpoint, x402 challenge, signature, settlement, or blockchain write occurred in this correction phase.
