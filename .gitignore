@@ -1,0 +1,24 @@
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+
+# Dependencies and build output
+node_modules/
+.next/
+dist/
+build/
+coverage/
+
+# Logs
+*.log
+
+# Operating system and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+
+# Local Codex metadata
+.codex/
