@@ -94,6 +94,52 @@ export type EvidenceVerification = "VERIFIED" | "PARTIALLY_VERIFIED" | "UNVERIFI
 export type EvidenceQuality = "STRONG" | "USABLE" | "LIMITED" | "INSUFFICIENT" | "CONTRADICTED" | "INVALID";
 export type EvidenceFactValue = string | number | boolean | null | EvidenceFactValue[] | { [key: string]: EvidenceFactValue };
 
+export interface SanitizedRequestSummary {
+  endpoint: string;
+  method: string;
+  intent: DiscoveryIntent;
+  minerId: string;
+  minerName: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface MinerRequestTrace {
+  minerId: string;
+  minerName: string;
+  rank: number;
+  endpoint: string;
+  method: string;
+  advertisedPriceMicroUsdc: number;
+  selectionExplanation: string;
+  requestSummary: SanitizedRequestSummary;
+}
+
+export interface MinerResponseTrace {
+  minerId: string;
+  minerName: string;
+  status: "acquired" | "discovery_failed" | "no_compatible_miner" | "call_failed" | "skipped";
+  settledMicroUsdc: number;
+  providerConfidence?: number;
+  providerFacts?: Record<string, EvidenceFactValue>;
+  rawVerdict?: string;
+  reason?: string;
+}
+
+export interface EvidenceQuestionTrace {
+  id: string;
+  question: string;
+  whyItMatters: string;
+  intent: DiscoveryIntent;
+  mandatory: boolean;
+  minimumQuality: "USABLE" | "STRONG";
+  reasonCode: string;
+  condition: string;
+  minerRequests: MinerRequestTrace[];
+  minerResponses: MinerResponseTrace[];
+  requirementStatus: "SATISFIED" | "UNSATISFIED" | "BLOCKING" | "OPTIONAL";
+  decisionContribution: string;
+}
+
 export interface EvidenceAssessment {
   intent: DiscoveryIntent;
   structuralValidity: Conformance;
@@ -108,3 +154,4 @@ export interface EvidenceAssessment {
   contradictions: string[];
   missingEvidence: string[];
 }
+

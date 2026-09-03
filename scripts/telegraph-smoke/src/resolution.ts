@@ -204,3 +204,37 @@ function humanBelowQuality(intent: string): string {
   if (intent === "ONCHAIN_TX_LOOKUP") return "The on-chain evidence does not meet the required quality for this action.";
   return "An evidence assessment does not meet the required quality.";
 }
+
+/**
+ * Derives a deterministic human explanation of how a specific evidence requirement
+ * contributed to the final ActionDecision.
+ */
+export function deriveEvidenceContribution(
+  intent: string,
+  decision: ActionDecision,
+  assessment?: EvidenceAssessment,
+  minimumQuality: "USABLE" | "STRONG" = "USABLE"
+): string {
+  if (decision.decision === "ALLOW") {
+    return `This requirement was satisfied because the returned evidence met the required ${minimumQuality} quality threshold.`;
+  }
+  if (decision.decision === "BLOCK") {
+    if (decision.blockingEvidence.some((b) => b.startsWith(intent))) {
+      return `This evidence contributed to BLOCK because a verified adverse finding was detected.`;
+    }
+  }
+  if (!assessment) {
+    return `This evidence contributed to REVIEW because required information was missing.`;
+  }
+  if (assessment.quality === "CONTRADICTED" || assessment.verification === "CONTRADICTED") {
+    return `This evidence was classified as CONTRADICTED because the miner response conflicted with independently verifiable transaction evidence.`;
+  }
+  if (assessment.quality === "LIMITED" || assessment.quality === "INSUFFICIENT" || assessment.quality === "INVALID") {
+    return `This requirement remains unresolved because the ${intent} assessment was ${assessment.quality} while the policy requires ${minimumQuality} evidence.`;
+  }
+  if (decision.reviewEvidence.some((r) => r.startsWith(intent))) {
+    return `This evidence contributed to REVIEW because the policy requirements were not fully satisfied.`;
+  }
+  return `This requirement was satisfied because the returned evidence met the required ${minimumQuality} quality threshold.`;
+}
+

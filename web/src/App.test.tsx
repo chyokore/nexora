@@ -133,7 +133,7 @@ describe("judge-facing experience", () => {
     mockApi("ALLOW");
     render(<App />);
     expect(screen.getByRole("heading", { name: /Verify Intelligence.*Bound Action/ })).toBeVisible();
-    expect(screen.getByText(/Intelligence tells an agent what is happening/)).toBeVisible();
+    expect(screen.getByText(/Ask a question. See the evidence behind the decision/)).toBeVisible();
   });
 
   it("renders the Live Decision section and Run Live Decision button", () => {
@@ -146,7 +146,7 @@ describe("judge-facing experience", () => {
   it("renders architecture snapshot and contradiction spotlight", () => {
     mockApi("ALLOW");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /How Nexora Evaluates Agent Actions/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /How Nexora Turns Questions into Bounded Decisions/ })).toBeVisible();
     expect(screen.getByRole("heading", { name: /The Contradiction Case/ })).toBeVisible();
     expect(screen.getByText(/High Confidence ≠ Correct Evidence/)).toBeVisible();
   });
@@ -282,17 +282,15 @@ describe("judge-facing experience", () => {
     expect(screen.getAllByText("Nexora Quality").length).toBeGreaterThan(0);
   });
 
-  it("renders sample decision questions section", () => {
+  it("renders sample questions section for judge clarity", () => {
     mockApi("ALLOW");
     render(<App />);
     expect(screen.getByRole("heading", { name: "WHAT CAN NEXORA HELP DECIDE?", level: 2 })).toBeInTheDocument();
     expect(screen.getByText('"Should this supplier payment be authorized?"')).toBeInTheDocument();
-    expect(screen.getByText('"Is the available fraud evidence strong enough to proceed?"')).toBeInTheDocument();
-    expect(screen.getByText('"Does the supplier destination meet the evidence requirements for this action?"')).toBeInTheDocument();
     expect(screen.getByText('"Why did Nexora hold this action for review?"')).toBeInTheDocument();
   });
 
-  it("renders why Nexora is different section with three principles", () => {
+  it("renders why nexora is different section with core principles", () => {
     mockApi("ALLOW");
     render(<App />);
     expect(screen.getByRole("heading", { name: "WHY NEXORA IS DIFFERENT", level: 2 })).toBeInTheDocument();
@@ -306,12 +304,19 @@ describe("judge-facing experience", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "Frequently Asked Questions", level: 2 })).toBeInTheDocument();
     expect(screen.getByText("REVIEW IS A SAFETY DECISION")).toBeInTheDocument();
-    expect(screen.getByText("What does Nexora do?")).toBeInTheDocument();
-    expect(screen.getByText("How does Telegraph fit into Nexora?")).toBeInTheDocument();
-    expect(screen.getByText("Why can Nexora return REVIEW after paying for intelligence?")).toBeInTheDocument();
-    expect(screen.getByText("Does Nexora move money?")).toBeInTheDocument();
-    expect(screen.getByText("Can I see why Nexora made a decision?")).toBeInTheDocument();
-    expect(screen.getByText("What happens when miners disagree or evidence is incomplete?")).toBeInTheDocument();
+    expect(screen.getByText("What is Nexora?")).toBeInTheDocument();
+    expect(screen.getByText("Is Nexora a chatbot or search engine?")).toBeInTheDocument();
+    expect(screen.getByText("Why does Nexora ask several evidence questions?")).toBeInTheDocument();
+    expect(screen.getByText("How does Nexora choose Telegraph miners?")).toBeInTheDocument();
+    expect(screen.getByText("Does Nexora search the entire Telegraph network?")).toBeInTheDocument();
+    expect(screen.getByText("Can one question use multiple miners?")).toBeInTheDocument();
+    expect(screen.getByText("Why can’t Nexora simply trust a miner’s confidence score?")).toBeInTheDocument();
+    expect(screen.getByText("Can a highly confident miner still be wrong?")).toBeInTheDocument();
+    expect(screen.getByText("What are ALLOW, REVIEW, and BLOCK?")).toBeInTheDocument();
+    expect(screen.getByText("What is Decision Replay?")).toBeInTheDocument();
+    expect(screen.getByText("Does Nexora move money or execute a user’s transaction?")).toBeInTheDocument();
+    expect(screen.getByText("Why does Nexora use Telegraph?")).toBeInTheDocument();
+    expect(screen.getByText("Can Nexora work with links, images, documents, or videos?")).toBeInTheDocument();
   });
 
   it("renders Decision Replay trail explanation", async () => {
@@ -321,4 +326,3 @@ describe("judge-facing experience", () => {
     expect(screen.getAllByText("EVERY DECISION LEAVES A TRAIL").length).toBeGreaterThan(0);
   });
 });
-

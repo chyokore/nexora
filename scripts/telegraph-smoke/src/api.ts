@@ -117,17 +117,18 @@ export async function fetchDiscoverySummary(nodeUrl: string, fetchFn: typeof fet
   };
 }
 
-function agentRunInput(value: unknown): { proposedAction: ProposedAction } {
+function agentRunInput(value: unknown): { proposedAction: ProposedAction; userQuestion?: string } {
   if (value === null || typeof value !== "object" || Array.isArray(value)) {
     throw new RequestError(400, "VALIDATION_ERROR", "Agent run request is invalid", ["request:not_object"]);
   }
   const record = value as Record<string, unknown>;
   const details: string[] = [];
-  const allowed = new Set(["proposedAction"]);
+  const allowed = new Set(["proposedAction", "userQuestion"]);
   if (Object.keys(record).some((k) => !allowed.has(k))) details.push("request:unexpected_fields");
   if (!validateProposedAction(record.proposedAction)) details.push("request:invalid_proposed_action");
+  if (record.userQuestion !== undefined && typeof record.userQuestion !== "string") details.push("request:invalid_user_question");
   if (details.length > 0) throw new RequestError(400, "VALIDATION_ERROR", "Agent run request is invalid", details);
-  return record as { proposedAction: ProposedAction };
+  return record as { proposedAction: ProposedAction; userQuestion?: string };
 }
 
 async function handle(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): Promise<void> {
@@ -167,7 +168,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
       sendError(response, 503, "LIVE_AGENT_DISABLED", "Live decisions are currently disabled", ["Set ENABLE_LIVE_REFERENCE_AGENT=true to enable"]);
       return;
     }
-    const { proposedAction } = agentRunInput(body);
+    const { proposedAction, userQuestion } = agentRunInput(body);
     // Rate limiting — extract client IP from x-forwarded-for header behind proxies, or fallback to socket address
     const forwardedHeader = request.headers["x-forwarded-for"];
     const rawIp = (typeof forwardedHeader === "string" ? forwardedHeader.split(",")[0]?.trim() : null) || request.socket?.remoteAddress || "unknown";
@@ -195,6 +196,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
     try {
       result = await runReferenceAgent({
         proposedAction,
+        ...(userQuestion !== undefined ? { userQuestion } : {}),
         nodeUrl,
         fetchRegistry: fetch,
         environment,
@@ -208,6 +210,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
     sendJson(response, 200, sanitizeReplayValue(result));
     return;
   }
+
   if (path === "/v1/decisions/evaluate") {
     const input = evaluationInput(body);
     const decisionPacket = createDecisionPacket(decisionIdFor(input), input.proposedAction, input.evidenceAssessments);

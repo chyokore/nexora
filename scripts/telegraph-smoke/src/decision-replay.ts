@@ -5,8 +5,8 @@ import type { EvidenceAssessment } from "./types.js";
 
 export type ReplayStatus = "VERIFIED" | "MISMATCH" | "INVALID_PACKET" | "UNSUPPORTED_VERSION";
 export interface ReplayValidation { status: ReplayStatus; packetVersion: number | null; recordedDecision: ActionDecisionValue | null; recomputedDecision: ActionDecisionValue | null; matches: boolean; mismatches: string[]; warnings: string[]; }
-export interface ReplayEvent { order: number; type: "ACTION_PROPOSED" | "EVIDENCE_REQUIRED" | "EVIDENCE_ASSESSED" | "CONTRADICTION_OR_GAP" | "POLICY_EVALUATED" | "DECISION_RECORDED" | "DECISION_RECOMPUTED" | "REPLAY_VERIFIED" | "REPLAY_MISMATCH" | "REPLAY_REJECTED"; title: string; summary: string; details: Record<string, unknown>; }
-export interface DecisionReplay { version: 1; replayId: string; packetVersion: number | null; decisionId: string | null; fingerprint: string | null; validation: ReplayValidation; proposedAction: ProposedAction | null; evidence: EvidenceAssessment[]; policyEvaluation: ActionPolicySnapshot | null; recordedDecision: ActionDecision | null; recomputedDecision: ActionDecision | null; timeline: ReplayEvent[]; postDecisionOutcome: "NOT_RECORDED"; }
+export interface ReplayEvent { order: number; type: "USER_QUESTION" | "ACTION_PROPOSED" | "EVIDENCE_REQUIRED" | "EVIDENCE_ASSESSED" | "CONTRADICTION_OR_GAP" | "POLICY_EVALUATED" | "DECISION_RECORDED" | "DECISION_RECOMPUTED" | "REPLAY_VERIFIED" | "REPLAY_MISMATCH" | "REPLAY_REJECTED"; title: string; summary: string; details: Record<string, unknown>; }
+export interface DecisionReplay { version: 1; replayId: string; packetVersion: number | null; decisionId: string | null; userQuestion: string | null; fingerprint: string | null; validation: ReplayValidation; proposedAction: ProposedAction | null; evidence: EvidenceAssessment[]; policyEvaluation: ActionPolicySnapshot | null; recordedDecision: ActionDecision | null; recomputedDecision: ActionDecision | null; timeline: ReplayEvent[]; postDecisionOutcome: "NOT_RECORDED"; }
 
 const decisions = new Set<string>(ACTION_DECISIONS);
 const conformances = new Set(["MATCH", "COMPATIBLE_WITH_ADAPTER", "MISMATCH", "INVALID"]);
@@ -76,8 +76,9 @@ function validatePacket(value: unknown): { packet?: DecisionPacket; status?: Rep
   if (typeof value.version !== "number" || !Number.isInteger(value.version)) return { status: "INVALID_PACKET", errors: ["packet:malformed_version"], packetVersion: null };
   if (value.version !== 1) return { status: "UNSUPPORTED_VERSION", errors: [`packet:unsupported_version:${value.version}`], packetVersion: value.version };
   const errors: string[] = [];
-  if (!onlyKeys(value, ["version", "decisionId", "proposedAction", "evidenceAssessments", "policy", "actionDecision"])) errors.push("packet:unexpected_fields");
+  if (!onlyKeys(value, ["version", "decisionId", "userQuestion", "proposedAction", "evidenceAssessments", "policy", "actionDecision"])) errors.push("packet:unexpected_fields");
   if (typeof value.decisionId !== "string") errors.push("packet:invalid_decision_id");
+  if (value.userQuestion !== undefined && typeof value.userQuestion !== "string") errors.push("packet:invalid_user_question");
   if (!validateProposedAction(value.proposedAction)) errors.push("packet:invalid_proposed_action");
   if (!Array.isArray(value.evidenceAssessments) || !value.evidenceAssessments.every(validateEvidenceAssessment)) errors.push("packet:invalid_evidence_assessments");
   if (!validatePolicy(value.policy)) errors.push("packet:invalid_policy");
@@ -103,15 +104,17 @@ function event(order: number, type: ReplayEvent["type"], title: string, summary:
 
 function validTimeline(packet: DecisionPacket, recomputed: ActionDecision, validation: ReplayValidation): ReplayEvent[] {
   const gaps = packet.evidenceAssessments.flatMap((assessment) => [...assessment.contradictions.map((item) => `${assessment.intent}:contradiction:${item}`), ...assessment.missingEvidence.map((item) => `${assessment.intent}:missing:${item}`), ...(assessment.coverage === "OUT_OF_COVERAGE" ? [`${assessment.intent}:out_of_coverage`] : [])]).sort();
+  const userQuestion = packet.userQuestion ?? "Is there enough reliable evidence for my agent to authorize this supplier payment?";
   return [
-    event(1, "ACTION_PROPOSED", "Action proposed", packet.proposedAction.description, { type: packet.proposedAction.type, subject: packet.proposedAction.subject, riskClass: packet.proposedAction.riskClass }),
-    event(2, "EVIDENCE_REQUIRED", "Evidence required", "Recorded policy requirements", { requirements: packet.policy.requirements }),
-    event(3, "EVIDENCE_ASSESSED", "Evidence assessed", "Recorded evidence quality assessments", { assessments: packet.evidenceAssessments }),
-    event(4, "CONTRADICTION_OR_GAP", "Contradictions and gaps", gaps.length === 0 ? "No recorded contradictions or required-evidence gaps" : "Recorded contradictions or evidence gaps require attention", { items: gaps }),
-    event(5, "POLICY_EVALUATED", "Policy evaluated", "Canonical Action Policy reapplied to recorded inputs", { policyId: packet.policy.id, policyVersion: packet.policy.version, reasons: recomputed.reasons }),
-    event(6, "DECISION_RECORDED", "Decision recorded", `Recorded decision: ${packet.actionDecision.decision}`, { actionDecision: packet.actionDecision }),
-    event(7, "DECISION_RECOMPUTED", "Decision recomputed", `Recomputed decision: ${recomputed.decision}`, { actionDecision: recomputed }),
-    event(8, validation.matches ? "REPLAY_VERIFIED" : "REPLAY_MISMATCH", validation.matches ? "Replay verified" : "Replay mismatch", validation.matches ? "Recorded and recomputed ActionDecision fields match" : "Recorded and recomputed ActionDecision fields differ", { matches: validation.matches, mismatches: validation.mismatches }),
+    event(1, "USER_QUESTION", "Decision question", userQuestion, { userQuestion }),
+    event(2, "ACTION_PROPOSED", "Action proposed", packet.proposedAction.description, { type: packet.proposedAction.type, subject: packet.proposedAction.subject, riskClass: packet.proposedAction.riskClass }),
+    event(3, "EVIDENCE_REQUIRED", "Evidence required", "Recorded policy requirements", { requirements: packet.policy.requirements }),
+    event(4, "EVIDENCE_ASSESSED", "Evidence assessed", "Recorded evidence quality assessments", { assessments: packet.evidenceAssessments }),
+    event(5, "CONTRADICTION_OR_GAP", "Contradictions and gaps", gaps.length === 0 ? "No recorded contradictions or required-evidence gaps" : "Recorded contradictions or evidence gaps require attention", { items: gaps }),
+    event(6, "POLICY_EVALUATED", "Policy evaluated", "Canonical Action Policy reapplied to recorded inputs", { policyId: packet.policy.id, policyVersion: packet.policy.version, reasons: recomputed.reasons }),
+    event(7, "DECISION_RECORDED", "Decision recorded", `Recorded decision: ${packet.actionDecision.decision}`, { actionDecision: packet.actionDecision }),
+    event(8, "DECISION_RECOMPUTED", "Decision recomputed", `Recomputed decision: ${recomputed.decision}`, { actionDecision: recomputed }),
+    event(9, validation.matches ? "REPLAY_VERIFIED" : "REPLAY_MISMATCH", validation.matches ? "Replay verified" : "Replay mismatch", validation.matches ? "Recorded and recomputed ActionDecision fields match" : "Recorded and recomputed ActionDecision fields differ", { matches: validation.matches, mismatches: validation.mismatches }),
   ];
 }
 
@@ -120,7 +123,7 @@ export function replayDecisionPacket(input: unknown): DecisionReplay {
   if (!checked.packet) {
     const validation: ReplayValidation = { status: checked.status ?? "INVALID_PACKET", packetVersion: checked.packetVersion, recordedDecision: null, recomputedDecision: null, matches: false, mismatches: checked.errors, warnings: [] };
     const decisionId = isRecord(input) && typeof input.decisionId === "string" ? sanitizeReplayValue(input.decisionId, "decisionId") as string : null;
-    return { version: 1, replayId: "unavailable", packetVersion: checked.packetVersion, decisionId, fingerprint: null, validation, proposedAction: null, evidence: [], policyEvaluation: null, recordedDecision: null, recomputedDecision: null, timeline: [event(1, "REPLAY_REJECTED", "Replay rejected", "Packet validation failed", { status: validation.status, mismatches: validation.mismatches })], postDecisionOutcome: "NOT_RECORDED" };
+    return { version: 1, replayId: "unavailable", packetVersion: checked.packetVersion, decisionId, userQuestion: null, fingerprint: null, validation, proposedAction: null, evidence: [], policyEvaluation: null, recordedDecision: null, recomputedDecision: null, timeline: [event(1, "REPLAY_REJECTED", "Replay rejected", "Packet validation failed", { status: validation.status, mismatches: validation.mismatches })], postDecisionOutcome: "NOT_RECORDED" };
   }
   const packet = structuredClone(checked.packet);
   const recomputed = evaluateRecordedPolicy(packet.proposedAction, packet.evidenceAssessments, packet.policy);
@@ -128,7 +131,9 @@ export function replayDecisionPacket(input: unknown): DecisionReplay {
   const matches = mismatches.length === 0;
   const validation: ReplayValidation = { status: matches ? "VERIFIED" : "MISMATCH", packetVersion: 1, recordedDecision: packet.actionDecision.decision, recomputedDecision: recomputed.decision, matches, mismatches, warnings: [] };
   const fingerprint = fingerprintDecisionPacket(packet);
-  return { version: 1, replayId: `sha256:${fingerprint}`, packetVersion: 1, decisionId: packet.decisionId, fingerprint, validation, proposedAction: sanitizeReplayValue(packet.proposedAction) as ProposedAction, evidence: sanitizeReplayValue(packet.evidenceAssessments) as EvidenceAssessment[], policyEvaluation: sanitizeReplayValue(packet.policy) as ActionPolicySnapshot, recordedDecision: sanitizeReplayValue(packet.actionDecision) as ActionDecision, recomputedDecision: sanitizeReplayValue(recomputed) as ActionDecision, timeline: validTimeline(packet, recomputed, validation), postDecisionOutcome: "NOT_RECORDED" };
+  const userQuestion = packet.userQuestion ?? "Is there enough reliable evidence for my agent to authorize this supplier payment?";
+  return { version: 1, replayId: `sha256:${fingerprint}`, packetVersion: 1, decisionId: packet.decisionId, userQuestion, fingerprint, validation, proposedAction: sanitizeReplayValue(packet.proposedAction) as ProposedAction, evidence: sanitizeReplayValue(packet.evidenceAssessments) as EvidenceAssessment[], policyEvaluation: sanitizeReplayValue(packet.policy) as ActionPolicySnapshot, recordedDecision: sanitizeReplayValue(packet.actionDecision) as ActionDecision, recomputedDecision: sanitizeReplayValue(recomputed) as ActionDecision, timeline: validTimeline(packet, recomputed, validation), postDecisionOutcome: "NOT_RECORDED" };
 }
 
 export function serializeDecisionReplay(replay: DecisionReplay): string { return canonicalSerialize(replay); }
+

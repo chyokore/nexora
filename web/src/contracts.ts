@@ -33,9 +33,55 @@ export interface ActionDecision {
   reviewEvidence: string[];
 }
 
+export interface SanitizedRequestSummary {
+  endpoint: string;
+  method: string;
+  intent: string;
+  minerId: string;
+  minerName: string;
+  parameters: Record<string, unknown>;
+}
+
+export interface MinerRequestTrace {
+  minerId: string;
+  minerName: string;
+  rank: number;
+  endpoint: string;
+  method: string;
+  advertisedPriceMicroUsdc: number;
+  selectionExplanation: string;
+  requestSummary: SanitizedRequestSummary;
+}
+
+export interface MinerResponseTrace {
+  minerId: string;
+  minerName: string;
+  status: string;
+  settledMicroUsdc: number;
+  providerConfidence?: number;
+  providerFacts?: Record<string, string | number | boolean | null>;
+  reason?: string;
+}
+
+export interface EvidenceQuestionTrace {
+  id: string;
+  question: string;
+  whyItMatters: string;
+  intent: string;
+  mandatory: boolean;
+  minimumQuality: string;
+  reasonCode: string;
+  condition: string;
+  minerRequests: MinerRequestTrace[];
+  minerResponses: MinerResponseTrace[];
+  requirementStatus: "SATISFIED" | "UNSATISFIED" | "BLOCKING" | "OPTIONAL";
+  decisionContribution: string;
+}
+
 export interface DecisionReplay {
   replayId: string;
   decisionId: string;
+  userQuestion?: string | null;
   fingerprint: string;
   validation: { status: string; recordedDecision: Decision; recomputedDecision: Decision; matches: boolean; mismatches: string[]; warnings: string[] };
   evidence: EvidenceAssessment[];
@@ -46,7 +92,7 @@ export interface DecisionReplay {
 }
 
 export interface EvaluationResponse {
-  decisionPacket: { version: 1; decisionId: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
+  decisionPacket: { version: 1; decisionId: string; userQuestion?: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
   decisionReplay: DecisionReplay;
 }
 
@@ -96,6 +142,8 @@ export interface AcquiredIntelligence {
   endpoint: string;
   method: string;
   advertisedPriceMicroUsdc: number;
+  selectionExplanation?: string;
+  requestSummary?: SanitizedRequestSummary;
   outcome: IntelligenceOutcomeSummary;
 }
 
@@ -114,6 +162,9 @@ export interface DecisionResolution {
 }
 
 export interface PlannedRequirement {
+  id?: string;
+  question?: string;
+  whyItMatters?: string;
   intent: string;
   mandatory: boolean;
   minimumQuality: string;
@@ -123,6 +174,7 @@ export interface PlannedRequirement {
 }
 
 export interface EvidenceRequirementPlan {
+  userQuestion?: string;
   actionType: string;
   riskClass: string;
   requirements: PlannedRequirement[];
@@ -131,8 +183,10 @@ export interface EvidenceRequirementPlan {
 export interface LiveDecisionRunResult {
   runId: string;
   timestamp: string;
+  userQuestion?: string;
   proposedAction: ProposedAction;
   requirementPlan: EvidenceRequirementPlan;
+  evidenceQuestions?: EvidenceQuestionTrace[];
   acquiredIntelligence: AcquiredIntelligence[];
   evidenceAssessments: EvidenceAssessment[];
   actionDecision: ActionDecision;
@@ -140,7 +194,7 @@ export interface LiveDecisionRunResult {
   agentState: AgentActionState;
   agentStateLabel: string;
   agentStateSupport: string;
-  decisionPacket: { version: 1; decisionId: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
+  decisionPacket: { version: 1; decisionId: string; userQuestion?: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
   decisionReplay: DecisionReplay;
   paidCallCount: number;
   totalSettledMicroUsdc: number;
@@ -154,3 +208,4 @@ export interface LiveDecisionRunResult {
     settlementMetadata: unknown;
   }>;
 }
+

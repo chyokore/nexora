@@ -4,6 +4,7 @@ import type { EvidenceAssessment } from "./types.js";
 export interface DecisionPacket {
   version: 1;
   decisionId: string;
+  userQuestion?: string;
   proposedAction: ProposedAction;
   evidenceAssessments: EvidenceAssessment[];
   policy: ActionPolicySnapshot;
@@ -24,12 +25,26 @@ function deepFreeze<T>(value: T): T {
   return value;
 }
 
-export function createDecisionPacket(decisionId: string, proposedAction: ProposedAction, evidenceAssessments: readonly EvidenceAssessment[]): Readonly<DecisionPacket> {
+export function createDecisionPacket(
+  decisionId: string,
+  proposedAction: ProposedAction,
+  evidenceAssessments: readonly EvidenceAssessment[],
+  userQuestion?: string
+): Readonly<DecisionPacket> {
   const assessments = sortedAssessments(evidenceAssessments);
   const { policy, actionDecision } = evaluateActionPolicy(proposedAction, assessments);
-  return deepFreeze({ version: 1, decisionId, proposedAction: clone(proposedAction), evidenceAssessments: assessments, policy, actionDecision });
+  return deepFreeze({
+    version: 1,
+    decisionId,
+    ...(userQuestion ? { userQuestion } : {}),
+    proposedAction: clone(proposedAction),
+    evidenceAssessments: assessments,
+    policy,
+    actionDecision,
+  });
 }
 
 export function serializeDecisionPacket(packet: Readonly<DecisionPacket>): string {
   return JSON.stringify(packet);
 }
+

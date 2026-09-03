@@ -72,6 +72,14 @@ describe("planEvidenceRequirements", () => {
     assert.ok(plan.riskClass.length > 0, "riskClass must be set");
   });
 
+  it("includes deterministic userQuestion, question, and whyItMatters", () => {
+    const plan = planEvidenceRequirements(baseAction);
+    assert.strictEqual(plan.userQuestion, "Is there enough reliable evidence for my agent to authorize this supplier payment?");
+    const fraud = plan.requirements.find((r) => r.intent === "FRAUD_DETECTION");
+    assert.strictEqual(fraud?.question, "Are there credible fraud indicators associated with this supplier or payment request?");
+    assert.strictEqual(fraud?.whyItMatters, "A verified fraud signal could make the requested action unsafe to authorize.");
+  });
+
   it("requirements are sorted by intent name (deterministic order)", () => {
     const action: ProposedAction = {
       ...baseAction,
@@ -86,3 +94,4 @@ describe("planEvidenceRequirements", () => {
     assert.deepStrictEqual(intents1, sorted, "requirements must be sorted by intent name");
   });
 });
+

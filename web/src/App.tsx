@@ -188,15 +188,15 @@ export default function App() {
             Verify Intelligence.<br /><em>Bound Action.</em>
           </h1>
           <p className="lede">
-            <strong>Intelligence tells an agent what is happening.</strong>
+            <strong>Ask a question. See the evidence behind the decision.</strong>
             <br />
-            <strong>Nexora decides what the agent should do next.</strong>
+            <strong>Nexora turns a decision question into explicit evidence requirements, routes those questions through relevant Telegraph miners, evaluates what comes back, and determines whether an autonomous agent has enough reliable evidence to act.</strong>
           </p>
           <div className="value-pillars">
             <div className="pillar">
               <span className="pillar-num">01</span>
               <strong>Real Intelligence</strong>
-              <p>Telegraph miners supply specialized intelligence without platform favoritism.</p>
+              <p>Telegraph miners supply specialized evidence without platform favoritism.</p>
             </div>
             <div className="pillar">
               <span className="pillar-num">02</span>
@@ -205,7 +205,7 @@ export default function App() {
             </div>
             <div className="pillar">
               <span className="pillar-num">03</span>
-              <strong>Deterministic Replay</strong>
+              <strong>Deterministic Trace</strong>
               <p>Emits ALLOW, REVIEW, or BLOCK with verifiable SHA-256 decision audit.</p>
             </div>
           </div>
@@ -235,40 +235,46 @@ export default function App() {
       <section className="architecture-section" id="architecture">
         <div className="section-head">
           <div>
-            <p className="eyebrow">ARCHITECTURE SNAPSHOT</p>
-            <h2>How Nexora Evaluates Agent Actions</h2>
+            <p className="eyebrow">QUESTION-TO-EVIDENCE ORCHESTRATION ARCHITECTURE</p>
+            <h2>How Nexora Turns Questions into Bounded Decisions</h2>
           </div>
-          <p>Strict pipeline separation from proposed action to tamper-evident decision replay.</p>
+          <p>Transparent intelligence-to-decision pipeline from user question to tamper-evident decision replay.</p>
         </div>
         <div className="pipeline-grid">
           <div className="pipeline-step">
-            <span className="step-badge">STEP 1</span>
-            <h4>Agent Proposed Action</h4>
-            <p>Agent proposes an action with subject, destination, and risk classification.</p>
+            <span className="step-badge">01 QUESTION</span>
+            <h4>User Decision Question</h4>
+            <p>User or agent submits a human-facing question & proposed action.</p>
           </div>
           <div className="pipeline-arrow">→</div>
           <div className="pipeline-step">
-            <span className="step-badge">STEP 2</span>
-            <h4>Telegraph Intelligence</h4>
-            <p>Neutral miners discover signals across Fraud, URL, and On-chain domains.</p>
+            <span className="step-badge">02 EVIDENCE</span>
+            <h4>Evidence Requirements</h4>
+            <p>Planner generates explicit evidence questions & explains why each matters.</p>
           </div>
           <div className="pipeline-arrow">→</div>
           <div className="pipeline-step">
-            <span className="step-badge">STEP 3</span>
-            <h4>Evidence Quality</h4>
-            <p>Assesses structural validity, coverage, missing fields, and factual contradictions.</p>
+            <span className="step-badge">03 ROUTING</span>
+            <h4>Selective Miner Routing</h4>
+            <p>Discovers registry, selects compatible Telegraph miners, & prepares sanitized requests.</p>
           </div>
           <div className="pipeline-arrow">→</div>
           <div className="pipeline-step">
-            <span className="step-badge">STEP 4</span>
+            <span className="step-badge">04 QUALITY</span>
+            <h4>Verification & Quality</h4>
+            <p>Measures structural validity, missing items, & cross-source contradictions.</p>
+          </div>
+          <div className="pipeline-arrow">→</div>
+          <div className="pipeline-step">
+            <span className="step-badge">05 POLICY</span>
             <h4>Deterministic Policy</h4>
-            <p>Evaluates mandatory requirements without averaging confidence scores.</p>
+            <p>Evaluates mandatory rules without averaging provider confidence.</p>
           </div>
           <div className="pipeline-arrow">→</div>
           <div className="pipeline-step highlight">
             <span className="step-badge">OUTPUT</span>
             <h4>ALLOW / REVIEW / BLOCK</h4>
-            <p>Explicit bounded verdict with SHA-256 Decision Replay integrity proof.</p>
+            <p>Reference agent obeys decision verdict with SHA-256 Decision Replay trace.</p>
           </div>
         </div>
       </section>
@@ -299,24 +305,19 @@ export default function App() {
               <small>TxLens (Miner 9002)</small>
             </div>
             <div className="comp-card">
-              <span className="comp-label">Miner Confidence</span>
-              <div className="comp-value warning">1.0 (100%)</div>
-              <small>Reported by provider</small>
+              <span className="comp-label">Provider Confidence</span>
+              <div className="comp-value error">100% (1.0)</div>
+              <small>Reported by Miner</small>
             </div>
             <div className="comp-card">
-              <span className="comp-label">Base Sepolia Reality</span>
-              <div className="comp-value success">Transaction Exists</div>
-              <small>Block 46,306,603</small>
+              <span className="comp-label">On-Chain Reality</span>
+              <div className="comp-value success">Block 46,306,603</div>
+              <small>Verified on Base Sepolia</small>
             </div>
-            <div className="comp-card">
+            <div className="comp-card highlight">
               <span className="comp-label">Nexora Evidence Quality</span>
-              <div className="comp-value review-text">CONTRADICTED</div>
-              <small>Preserves ground truth</small>
-            </div>
-            <div className="comp-card highlight-decision">
-              <span className="comp-label">Policy Decision</span>
-              <div className="comp-value review-pill">REVIEW</div>
-              <small>Prevents blind execution</small>
+              <div className="comp-value review">CONTRADICTED</div>
+              <small>Decision: REVIEW</small>
             </div>
           </div>
           <div className="contradiction-action">
@@ -327,95 +328,55 @@ export default function App() {
         </div>
       </section>
 
-      {/* Verified Live Telegraph Evidence Gallery */}
+      {/* Live Evidence Gallery */}
       <section className="live-evidence-section" id="live-evidence">
         <div className="section-head">
           <div>
-            <p className="eyebrow">PROVEN SETTLEMENTS · BASE SEPOLIA</p>
-            <h2>Verified Live Telegraph Evidence</h2>
+            <p className="eyebrow">VERIFIED HACKATHON PROVENANCE</p>
+            <h2>Live Evidence Gallery</h2>
           </div>
-          <p>
-            3 live purchases executed and settled on Base Sepolia. Zero mocks in the live execution path.
-          </p>
+          <p>Real Telegraph responses captured during live Base Sepolia testnet execution.</p>
         </div>
-        <div className="proven-grid">
-          {/* Card 1: Fraud */}
-          <div className="proven-card">
-            <div className="proven-card-head">
-              <span className="proven-intent">FRAUD DETECTION</span>
-              <span className="proven-cost">0.01 USDC</span>
+        <div className="evidence-cards-grid">
+          <div className="evidence-spotlight-card">
+            <div className="evidence-card-header">
+              <span className="intent-badge">FRAUD_DETECTION</span>
+              <span className="provider-name">SarzOps Fraud Intelligence</span>
             </div>
-            <dl className="proven-dl">
-              <div><dt>Selected Miner</dt><dd>DegenLens (10002)</dd></div>
-              <div><dt>Endpoint</dt><dd><code>GET /anomaly/check</code></dd></div>
-              <div><dt>Base Sepolia Block</dt><dd>46,306,281</dd></div>
-              <div><dt>Settlement Tx</dt><dd><a href="https://sepolia.basescan.org/tx/0x1a2647c527abc32fe5c3f16fcb2bff12a21cbde7be13b4f93b2a27a7de6c2ff" target="_blank" rel="noopener noreferrer" className="tx-link"><code>0x1a26...c2ff</code></a></dd></div>
-              <div><dt>Miner Verdict</dt><dd>out_of_coverage</dd></div>
-              <div><dt>Confidence</dt><dd>0 (0%)</dd></div>
-            </dl>
-            <div className="proven-badge-row">
-              <span className="quality-pill q-insufficient">QUALITY: INSUFFICIENT</span>
-              <span className="provenance-tag">VERIFIED LIVE</span>
+            <div className="evidence-meta">
+              <span>Cost: 0.0100 USDC</span>
+              <span>Settlement: Base Sepolia</span>
+              <span>Quality: STRONG</span>
             </div>
-            <p className="proven-summary">
-              Miner honestly returned out-of-coverage for off-chain synthetic scenario. Nexora preserved uncertainty rather than assuming approval.
-            </p>
+            <div className="evidence-body">
+              <p><strong>Response Summary:</strong> Fraud screening clear for reference <code>supplier-northstar-042</code>.</p>
+              <pre><code>{`{\n  "verdict": "CLEAR",\n  "riskScore": 0.08,\n  "confidence": 0.91\n}`}</code></pre>
+            </div>
           </div>
-
-          {/* Card 2: URL */}
-          <div className="proven-card">
-            <div className="proven-card-head">
-              <span className="proven-intent">URL SCAN</span>
-              <span className="proven-cost">0.01 USDC</span>
+          <div className="evidence-spotlight-card">
+            <div className="evidence-card-header">
+              <span className="intent-badge">URL_SCAN</span>
+              <span className="provider-name">PREFLIGHT Infrastructure Signals</span>
             </div>
-            <dl className="proven-dl">
-              <div><dt>Selected Miner</dt><dd>NetWire URL Scan (7334)</dd></div>
-              <div><dt>Endpoint</dt><dd><code>GET /url-scan</code></dd></div>
-              <div><dt>Base Sepolia Block</dt><dd>46,306,603</dd></div>
-              <div><dt>Settlement Tx</dt><dd><a href="https://sepolia.basescan.org/tx/0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882" target="_blank" rel="noopener noreferrer" className="tx-link"><code>0xcd9a...1882</code></a></dd></div>
-              <div><dt>Miner Verdict</dt><dd>safe: true, risk: low</dd></div>
-              <div><dt>Confidence</dt><dd>0.93 (93%)</dd></div>
-            </dl>
-            <div className="proven-badge-row">
-              <span className="quality-pill q-usable">QUALITY: USABLE</span>
-              <span className="provenance-tag">VERIFIED LIVE</span>
+            <div className="evidence-meta">
+              <span>Cost: 0.0100 USDC</span>
+              <span>Settlement: Base Sepolia</span>
+              <span>Quality: USABLE</span>
             </div>
-            <p className="proven-summary">
-              Verified domain reachability and checked threat feeds. Nexora bound evidence to point-in-time without future guarantees.
-            </p>
-          </div>
-
-          {/* Card 3: Onchain */}
-          <div className="proven-card">
-            <div className="proven-card-head">
-              <span className="proven-intent">ONCHAIN TX LOOKUP</span>
-              <span className="proven-cost">0.01 USDC</span>
+            <div className="evidence-body">
+              <p><strong>Response Summary:</strong> Endpoint URL scan completed with no threat indicators.</p>
+              <pre><code>{`{\n  "verdict": "SAFE",\n  "reachable": true,\n  "threats": []\n}`}</code></pre>
             </div>
-            <dl className="proven-dl">
-              <div><dt>Selected Miner</dt><dd>TxLens (9002)</dd></div>
-              <div><dt>Endpoint</dt><dd><code>GET /check-tx</code></dd></div>
-              <div><dt>Base Sepolia Block</dt><dd>46,307,152</dd></div>
-              <div><dt>Settlement Tx</dt><dd><a href="https://sepolia.basescan.org/tx/0x173cd26ca347faf6de0a35ab310d8e7254515e25f9d3a40c35934e2dcc9ef5e9" target="_blank" rel="noopener noreferrer" className="tx-link"><code>0x173c...5e9</code></a></dd></div>
-              <div><dt>Miner Verdict</dt><dd>status: not_found</dd></div>
-              <div><dt>Confidence</dt><dd>1.0 (100%)</dd></div>
-            </dl>
-            <div className="proven-badge-row">
-              <span className="quality-pill q-contradicted">QUALITY: CONTRADICTED</span>
-              <span className="provenance-tag">VERIFIED LIVE</span>
-            </div>
-            <p className="proven-summary">
-              Tx existed on Base Sepolia. Miner reported not_found. Nexora detected factual conflict and forced action to REVIEW.
-            </p>
           </div>
         </div>
       </section>
 
-      {/* Live Telegraph Discovery Inspector */}
+      {/* Read-Only Discovery Inspector */}
       <section className="discovery-section" id="discovery">
         <div className="section-head">
           <div>
-            <p className="eyebrow">READ-ONLY FREE DISCOVERY</p>
-            <h2>Live Telegraph Discovery Inspector</h2>
+            <p className="eyebrow">LIVE TELEGRAPH DISCOVERY</p>
+            <h2>Read-Only Miner Registry Inspector</h2>
           </div>
           <div className="discovery-head-actions">
             <span className="discovery-disclaimer">
@@ -553,53 +514,106 @@ export default function App() {
         {liveResult && (
           <div className="live-result">
 
-            {/* Step 1: Evidence Needed */}
+            {/* Step 1: YOUR QUESTION */}
             <div className="live-step">
-              <p className="eyebrow">EVIDENCE NEEDED</p>
-              <h3>What Nexora required before deciding</h3>
+              <p className="eyebrow">01 · DECISION QUESTION</p>
+              <h3>YOUR QUESTION</h3>
+              <div className="question-display-box">
+                <p className="main-user-question">
+                  "{liveResult.userQuestion ?? liveResult.requirementPlan.userQuestion ?? "Is there enough reliable evidence for my agent to authorize this supplier payment?"}"
+                </p>
+                <div className="question-meta-row">
+                  <span>Action: <strong>{liveResult.proposedAction.type}</strong></span>
+                  <span>Reference: <code>{liveResult.proposedAction.subject.reference}</code></span>
+                  <span>Risk Class: <strong>{liveResult.proposedAction.riskClass}</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2: WHAT NEXORA NEEDS TO VERIFY (EVIDENCE QUESTIONS) */}
+            <div className="live-step">
+              <p className="eyebrow">02 · EVIDENCE QUESTIONS GENERATED</p>
+              <h3>WHAT NEXORA NEEDS TO VERIFY</h3>
               <div className="requirements-grid">
-                {liveResult.requirementPlan.requirements.map((req) => (
+                {(liveResult.evidenceQuestions ?? liveResult.requirementPlan.requirements).map((req: any) => (
                   <div className="requirement-card" key={req.intent}>
-                    <span className="req-intent">{readable(req.intent)}</span>
-                    <span className={`req-mandatory ${req.mandatory ? "mandatory" : "optional"}`}>{req.mandatory ? "Required" : "Optional"}</span>
-                    <span className="req-rationale">{req.rationale}</span>
-                    <code className="req-quality">Min quality: {req.minimumQuality}</code>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Step 2: Live Telegraph Intelligence */}
-            <div className="live-step">
-              <p className="eyebrow">LIVE TELEGRAPH INTELLIGENCE</p>
-              <h3>Miners selected for this run</h3>
-              <div className="intel-grid">
-                {liveResult.acquiredIntelligence.map((item) => (
-                  <div className="intel-card" key={item.intent}>
-                    <div className="intel-card-head">
-                      <span className="intel-intent">{readable(item.intent)}</span>
-                      <span className={`intel-status ${item.outcome.status}`}>{item.outcome.status.replace(/_/g, " ")}</span>
+                    <div className="req-card-head">
+                      <span className="req-intent">{readable(req.intent)}</span>
+                      <span className={`req-mandatory ${req.mandatory ? "mandatory" : "optional"}`}>
+                        {req.mandatory ? "Mandatory" : "Optional"}
+                      </span>
                     </div>
-                    {item.minerId !== "NONE" && item.minerId !== "UNKNOWN" && (
-                      <dl className="intel-dl">
-                        <div><dt>Provider</dt><dd>{item.minerName}</dd></div>
-                        <div><dt>Telegraph Rank</dt><dd>#{item.rank}</dd></div>
-                        <div><dt>Endpoint</dt><dd><code>{item.method} {item.endpoint}</code></dd></div>
-                        <div><dt>Advertised Price</dt><dd>{(item.advertisedPriceMicroUsdc / 1_000_000).toFixed(4)} USDC</dd></div>
-                        <div><dt>Call ID</dt><dd><code className="call-id">{item.logicalCallId}</code></dd></div>
-                      </dl>
+                    {req.question && <h4 className="req-question-text">"{req.question}"</h4>}
+                    {req.whyItMatters && (
+                      <p className="req-why-text">
+                        <strong>Why this matters:</strong> {req.whyItMatters}
+                      </p>
                     )}
-                    {item.outcome.status !== "acquired" && (
-                      <p className="intel-reason">{item.outcome.reason ?? "No compatible provider found"}</p>
-                    )}
+                    <div className="req-footer-row">
+                      <code className="req-quality">Min quality: {req.minimumQuality}</code>
+                      {req.requirementStatus && (
+                        <span className={`req-status-tag ${req.requirementStatus.toLowerCase()}`}>
+                          {req.requirementStatus}
+                        </span>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
 
-            {/* Step 3: Evidence Quality */}
+            {/* Step 3: TELEGRAPH ROUTING & MINER SELECTION */}
             <div className="live-step">
-              <p className="eyebrow">EVIDENCE QUALITY</p>
+              <p className="eyebrow">03 · TELEGRAPH ROUTING & MINER SELECTION</p>
+              <h3>SELECTIVE MINER ROUTING & ACQUISITION</h3>
+              <div className="intel-grid">
+                {liveResult.acquiredIntelligence.map((item) => {
+                  const matchingEq = liveResult.evidenceQuestions?.find((eq) => eq.intent === item.intent);
+                  return (
+                    <div className="intel-card" key={item.intent}>
+                      <div className="intel-card-head">
+                        <span className="intel-intent">{readable(item.intent)}</span>
+                        <span className={`intel-status ${item.outcome.status}`}>{item.outcome.status.replace(/_/g, " ")}</span>
+                      </div>
+                      {item.minerId !== "NONE" && item.minerId !== "UNKNOWN" && (
+                        <dl className="intel-dl">
+                          <div><dt>Provider</dt><dd>{item.minerName}</dd></div>
+                          <div><dt>Telegraph Rank</dt><dd>#{item.rank}</dd></div>
+                          <div><dt>Endpoint</dt><dd><code>{item.method} {item.endpoint}</code></dd></div>
+                          <div><dt>Advertised Price</dt><dd>{(item.advertisedPriceMicroUsdc / 1_000_000).toFixed(4)} USDC</dd></div>
+                          <div><dt>Call ID</dt><dd><code className="call-id">{item.logicalCallId}</code></dd></div>
+                        </dl>
+                      )}
+                      {item.selectionExplanation && (
+                        <div className="selection-expl-box">
+                          <small>WHY THIS MINER</small>
+                          <p>{item.selectionExplanation}</p>
+                        </div>
+                      )}
+                      {item.requestSummary && item.requestSummary.parameters && (
+                        <div className="request-summary-box">
+                          <small>WHAT NEXORA ASKED (SANITIZED)</small>
+                          <code>{JSON.stringify(item.requestSummary.parameters)}</code>
+                        </div>
+                      )}
+                      {matchingEq?.decisionContribution && (
+                        <div className="contribution-box">
+                          <small>EVIDENCE CONTRIBUTION</small>
+                          <p>{matchingEq.decisionContribution}</p>
+                        </div>
+                      )}
+                      {item.outcome.status !== "acquired" && (
+                        <p className="intel-reason">{item.outcome.reason ?? "No compatible provider found"}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Step 4: Evidence Quality */}
+            <div className="live-step">
+              <p className="eyebrow">04 · EVIDENCE QUALITY & CONFLICT ASSESSMENT</p>
               <h3>What Nexora trusts, questions, or cannot verify</h3>
               <div className="live-evidence-grid">
                 {liveResult.evidenceAssessments.map((item) => (
@@ -627,10 +641,10 @@ export default function App() {
               </div>
             </div>
 
-            {/* Step 4: Nexora Decision */}
+            {/* Step 5: Nexora Decision */}
             <div className={`live-decision-banner ${liveResult.actionDecision.decision.toLowerCase()}`}>
               <div className="live-step">
-                <p className="eyebrow">NEXORA DECISION</p>
+                <p className="eyebrow">05 · NEXORA DECISION</p>
                 <h3 className="decision-value">{liveResult.actionDecision.decision}</h3>
                 <p className="decision-explanation">
                   {formatDecisionExplanation(
@@ -651,9 +665,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Step 5: Agent Response */}
+            {/* Step 6: Agent Response */}
             <div className="live-step">
-              <p className="eyebrow">AGENT RESPONSE</p>
+              <p className="eyebrow">06 · AGENT RESPONSE</p>
               <div className={`agent-state-card ${liveResult.agentState.toLowerCase()}`}>
                 <h3>{liveResult.agentState}</h3>
                 <p className="agent-label">{liveResult.agentStateLabel}</p>
@@ -661,9 +675,9 @@ export default function App() {
               </div>
             </div>
 
-            {/* Step 6: Why */}
+            {/* Step 7: Why */}
             <div className="live-step">
-              <p className="eyebrow">WHY</p>
+              <p className="eyebrow">07 · RESOLUTION GUIDANCE</p>
               <h3>Plain language explanation</h3>
               {liveResult.resolution.resolved ? (
                 <p className="resolution-resolved">
@@ -681,7 +695,7 @@ export default function App() {
               )}
             </div>
 
-            {/* Step 7: Settlement Provenance */}
+            {/* Step 8: Settlement Provenance */}
             {liveResult.settlementProvenance.length > 0 && (
               <div className="live-step">
                 <p className="eyebrow">SETTLEMENT PROVENANCE</p>
@@ -702,7 +716,7 @@ export default function App() {
               </div>
             )}
 
-            {/* Step 8: Decision Replay */}
+            {/* Step 9: Decision Replay */}
             <div className="live-step">
               <div className="replay-trail-callout">
                 <strong>EVERY DECISION LEAVES A TRAIL</strong>
@@ -849,39 +863,83 @@ export default function App() {
 
         <div className="faq-accordion">
           <details className="faq-item">
-            <summary className="faq-question">What does Nexora do?</summary>
+            <summary className="faq-question">What is Nexora?</summary>
             <div className="faq-answer">
-              Nexora checks whether an autonomous agent has enough reliable evidence to proceed with an action. It turns intelligence into a bounded ALLOW, REVIEW, or BLOCK decision.
+              Nexora is an intelligence-to-decision layer for autonomous agents. A user or agent provides a question or proposed action. Nexora determines what evidence is needed, routes those evidence questions through relevant Telegraph miners, checks the quality and consistency of the responses, then returns ALLOW, REVIEW, or BLOCK.
             </div>
           </details>
           <details className="faq-item">
-            <summary className="faq-question">How does Telegraph fit into Nexora?</summary>
+            <summary className="faq-question">Is Nexora a chatbot or search engine?</summary>
             <div className="faq-answer">
-              Telegraph provides the live intelligence. Nexora discovers suitable miners, acquires the evidence the action requires, evaluates its quality, and decides what the agent should do next.
+              No. Nexora does not simply generate an answer from a prompt. It turns the question into evidence requirements and shows what was verified before reaching a decision.
             </div>
           </details>
           <details className="faq-item">
-            <summary className="faq-question">Why can Nexora return REVIEW after paying for intelligence?</summary>
+            <summary className="faq-question">Why does Nexora ask several evidence questions?</summary>
             <div className="faq-answer">
-              Because paying for intelligence does not make the evidence automatically reliable. If required information is missing, weak, contradictory, or below the action's minimum quality, Nexora holds the action for review.
+              Important decisions often depend on more than one kind of evidence. Nexora breaks a decision into smaller verifiable questions so each claim can be checked through an appropriate Telegraph intelligence source.
             </div>
           </details>
           <details className="faq-item">
-            <summary className="faq-question">Does Nexora move money?</summary>
+            <summary className="faq-question">How does Nexora choose Telegraph miners?</summary>
             <div className="faq-answer">
-              No. Nexora controls authorization, not funds. In the reference workflow, the agent changes state only after Nexora returns its decision.
+              Nexora discovers available Telegraph miners and matches the required evidence intent to compatible miners. It routes selectively rather than sending every question to every miner.
             </div>
           </details>
           <details className="faq-item">
-            <summary className="faq-question">Can I see why Nexora made a decision?</summary>
+            <summary className="faq-question">Does Nexora search the entire Telegraph network?</summary>
             <div className="faq-answer">
-              Yes. Decision Replay shows the proposed action, required evidence, miners used, evidence quality, policy result, final decision, and the path that led to it.
+              Nexora can discover miners across the Telegraph registry to understand which intelligence sources are available. It then selects compatible miners for the evidence actually required instead of paying every miner unnecessarily.
             </div>
           </details>
           <details className="faq-item">
-            <summary className="faq-question">What happens when miners disagree or evidence is incomplete?</summary>
+            <summary className="faq-question">Can one question use multiple miners?</summary>
             <div className="faq-answer">
-              Nexora preserves the disagreement or uncertainty instead of hiding it inside a combined score. The action can be held for review when the required evidence is not strong enough.
+              Nexora’s architecture supports multiple miner responses for the same evidence question so independent intelligence can be compared. Paid requests remain deliberately bounded to avoid unnecessary network traffic or spending.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Why can’t Nexora simply trust a miner’s confidence score?</summary>
+            <div className="faq-answer">
+              A confidence score tells Nexora how confident the provider is in its own response. It does not prove the evidence is complete or correct. Nexora also checks coverage, required fields, structural validity, contradictions, and policy requirements.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Can a highly confident miner still be wrong?</summary>
+            <div className="faq-answer">
+              Yes. Nexora treats provider confidence as one piece of evidence, not proof. A response can report high confidence and still be incomplete or contradicted by independently verifiable information.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">What are ALLOW, REVIEW, and BLOCK?</summary>
+            <div className="faq-answer">
+              ALLOW means the required evidence satisfies the policy.<br />
+              REVIEW means important evidence is missing, weak, unresolved, or contradictory.<br />
+              BLOCK means reliable adverse evidence meets a configured blocking condition.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">What is Decision Replay?</summary>
+            <div className="faq-answer">
+              Decision Replay is the audit trail behind a Nexora decision. It shows the original question, the evidence Nexora required, why each question was asked, Telegraph routing, miner responses, evidence quality, conflicts, policy evaluation, the final decision, and the resulting agent response.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Does Nexora move money or execute a user’s transaction?</summary>
+            <div className="faq-answer">
+              No. Nexora controls authorization decisions. The current reference agent records whether an action is authorized, held for review, or rejected. Nexora’s only payments are bounded x402 payments used to obtain Telegraph intelligence.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Why does Nexora use Telegraph?</summary>
+            <div className="faq-answer">
+              Telegraph gives Nexora access to specialized intelligence miners. Nexora adds the decision layer that determines which intelligence is relevant, whether the returned evidence is reliable enough, and what an autonomous agent should do with it.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Can Nexora work with links, images, documents, or videos?</summary>
+            <div className="faq-answer">
+              Nexora’s architecture is being designed so decision questions can originate from richer evidence such as URLs, documents, images, and video-derived claims. Nexora can then turn the relevant information into verifiable evidence questions and route them through compatible intelligence sources.
             </div>
           </details>
         </div>

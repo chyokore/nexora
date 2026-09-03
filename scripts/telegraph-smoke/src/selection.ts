@@ -70,3 +70,8 @@ export function selectMiner(registry: unknown, intent: DiscoveryIntent): Selecti
   if (!winner) throw new Error(`No eligible miner for ${intent}`);
   return winner;
 }
+
+export function selectionExplanation(selection: Selection, intent: DiscoveryIntent): string {
+  return `Selected because ${selection.miner.name} advertises ${intent} support and matched the Telegraph intent required for this evidence question (Rank #${selection.score.rank}).`;
+}
+

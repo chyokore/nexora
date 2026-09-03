@@ -1867,4 +1867,117 @@ footer {
   line-height: 1.45;
 }
 
+/* Question-to-Evidence Orchestration Components */
+.question-display-box {
+  background: var(--panel);
+  border: 1px solid var(--mint-dim);
+  border-left: 3px solid var(--mint);
+  border-radius: 4px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.main-user-question {
+  margin: 0;
+  font-size: 1.22rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.question-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  font-size: 0.8rem;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+  padding-top: 10px;
+}
+
+.question-meta-row strong, .question-meta-row code {
+  color: var(--text);
+}
+
+.req-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.req-question-text {
+  margin: 4px 0 8px;
+  font-size: 0.96rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.req-why-text {
+  margin: 0 0 12px;
+  font-size: 0.81rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.req-why-text strong {
+  color: var(--mint);
+}
+
+.req-footer-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px dashed var(--line);
+}
+
+.req-status-tag {
+  font: 700 0.65rem ui-monospace, monospace;
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.req-status-tag.satisfied { background: var(--mint-dim); color: var(--mint); }
+.req-status-tag.unsatisfied { background: var(--amber-dim); color: var(--amber); }
+.req-status-tag.blocking { background: var(--rose-dim); color: var(--rose); }
+
+.selection-expl-box, .request-summary-box, .contribution-box {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 4px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.selection-expl-box small, .request-summary-box small, .contribution-box small {
+  font: 700 0.62rem ui-monospace, monospace;
+  color: var(--mint);
+  letter-spacing: 0.08em;
+}
+
+.selection-expl-box p, .contribution-box p {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.request-summary-box code {
+  font-size: 0.74rem;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  word-break: break-all;
+}
+
+
 

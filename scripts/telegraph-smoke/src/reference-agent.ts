@@ -1,13 +1,13 @@
 import { createHash, randomUUID } from "node:crypto";
 import { assessNormalizedEvidence } from "./evidence-assessment.js";
 import { executeGuardedPaidCall, requireExecutionEnvironment, type ExecutionEnvironment, type PaymentFetchFactory } from "./payment-adapter.js";
-import { planEvidenceRequirements, type EvidenceRequirementPlan } from "./planner.js";
+import { planEvidenceRequirements, DEFAULT_USER_QUESTION, type EvidenceRequirementPlan } from "./planner.js";
 import { LiveRunLedger } from "./policy.js";
-import { deriveResolution, type DecisionResolution } from "./resolution.js";
-import { eligibleSelections } from "./selection.js";
+import { deriveResolution, deriveEvidenceContribution, type DecisionResolution } from "./resolution.js";
+import { eligibleSelections, selectionExplanation } from "./selection.js";
 import { createDecisionPacket, type DecisionPacket } from "./decision-packet.js";
 import { replayDecisionPacket, type DecisionReplay } from "./decision-replay.js";
-import type { Intent, Selection, EvidenceAssessment, Miner } from "./types.js";
+import type { Intent, Selection, EvidenceAssessment, Miner, SanitizedRequestSummary, EvidenceQuestionTrace, MinerRequestTrace, MinerResponseTrace } from "./types.js";
 import type { ProposedAction, ActionDecision } from "./action-policy.js";
 
 // Re-exported so callers can construct the execution environment without
@@ -55,6 +55,8 @@ export interface AcquiredIntelligence {
   endpoint: string;
   method: string;
   advertisedPriceMicroUsdc: number;
+  selectionExplanation: string;
+  requestSummary: SanitizedRequestSummary;
   outcome: IntelligenceOutcome;
 }
 
@@ -62,8 +64,10 @@ export interface ReferenceAgentRunResult {
   /** Immutable server-generated run identifier. Not user-supplied. */
   runId: string;
   timestamp: string;
+  userQuestion: string;
   proposedAction: ProposedAction;
   requirementPlan: EvidenceRequirementPlan;
+  evidenceQuestions: EvidenceQuestionTrace[];
   acquiredIntelligence: AcquiredIntelligence[];
   evidenceAssessments: EvidenceAssessment[];
   actionDecision: ActionDecision;
@@ -141,7 +145,7 @@ function buildPayload(intent: Intent, action: ProposedAction, miner: Miner): Rec
   else if ("txHash" in props) req.txHash = txHash;
   if ("chain" in props) {
     const allowed = props.chain?.enum;
-    const supported = ["base", "base-sepolia", "Base Sepolia"].find((v) => !allowed || allowed.includes(v));
+    const supported = ["base", "base-sepolia", "Base Sepolia"].find((v) => !allowed || (Array.isArray(allowed) && allowed.includes(v)));
     if (supported) req.chain = supported;
   }
   if ("chainId" in props) req.chainId = 84532;
@@ -186,6 +190,7 @@ function makeFallbackAssessment(intent: Intent, reason: string): EvidenceAssessm
  */
 export async function runReferenceAgent(options: {
   proposedAction: ProposedAction;
+  userQuestion?: string;
   nodeUrl: string;
   fetchRegistry: typeof fetch;
   environment: ExecutionEnvironment;
@@ -197,7 +202,7 @@ export async function runReferenceAgent(options: {
   const runId = generateRunId();
 
   // 1. Determine what intelligence is required (deterministic, no network)
-  const requirementPlan = planEvidenceRequirements(proposedAction);
+  const requirementPlan = planEvidenceRequirements(proposedAction, options.userQuestion);
 
   // 2. Fetch the live registry — this is a free call
   let registry: Miner[];
@@ -224,6 +229,15 @@ export async function runReferenceAgent(options: {
         endpoint: "UNKNOWN",
         method: "UNKNOWN",
         advertisedPriceMicroUsdc: 0,
+        selectionExplanation: `Discovery failed for ${req.intent}: ${reason}`,
+        requestSummary: {
+          endpoint: "UNKNOWN",
+          method: "UNKNOWN",
+          intent: req.intent as Intent,
+          minerId: "UNKNOWN",
+          minerName: "UNKNOWN",
+          parameters: {},
+        },
         outcome: { status: "discovery_failed" as const, intent: req.intent as Intent, reason },
       }));
     const fallbackAssessments = acquiredIntelligence.map((a) =>
@@ -251,6 +265,10 @@ export async function runReferenceAgent(options: {
           intent, logicalCallId,
           minerId: "NONE", minerName: "NONE", rank: 0, endpoint: "NONE", method: "NONE",
           advertisedPriceMicroUsdc: 0,
+          selectionExplanation: `No active, schema-compatible provider found advertising ${intent} in the live Telegraph registry.`,
+          requestSummary: {
+            endpoint: "NONE", method: "NONE", intent, minerId: "NONE", minerName: "NONE", parameters: {},
+          },
           outcome: { status: "no_compatible_miner", intent },
         });
         evidenceAssessments.push(makeFallbackAssessment(intent, `No compatible provider found for ${intent}`));
@@ -263,6 +281,10 @@ export async function runReferenceAgent(options: {
         intent, logicalCallId,
         minerId: "NONE", minerName: "NONE", rank: 0, endpoint: "NONE", method: "NONE",
         advertisedPriceMicroUsdc: 0,
+        selectionExplanation: `Provider selection failed for ${intent}: ${reason}`,
+        requestSummary: {
+          endpoint: "NONE", method: "NONE", intent, minerId: "NONE", minerName: "NONE", parameters: {},
+        },
         outcome: { status: "no_compatible_miner", intent },
       });
       evidenceAssessments.push(makeFallbackAssessment(intent, reason));
@@ -270,6 +292,15 @@ export async function runReferenceAgent(options: {
     }
 
     const payload = buildPayload(intent, proposedAction, selection.miner);
+    const selExpl = selectionExplanation(selection, intent);
+    const reqSummary: SanitizedRequestSummary = {
+      endpoint: selection.endpoint.path,
+      method: selection.endpoint.method,
+      intent,
+      minerId: selection.miner.id,
+      minerName: selection.miner.name,
+      parameters: structuredClone(payload),
+    };
 
     try {
       const capture = await executeGuardedPaidCall({
@@ -304,6 +335,8 @@ export async function runReferenceAgent(options: {
         endpoint: selection.endpoint.path,
         method: selection.endpoint.method,
         advertisedPriceMicroUsdc: selection.miner.min_price_usdc,
+        selectionExplanation: selExpl,
+        requestSummary: reqSummary,
         outcome: { status: "acquired", assessment, settledMicroUsdc: settled, settlementMetadata: capture.settlementMetadata },
       });
 
@@ -328,6 +361,8 @@ export async function runReferenceAgent(options: {
         endpoint: selection.endpoint.path,
         method: selection.endpoint.method,
         advertisedPriceMicroUsdc: selection.miner.min_price_usdc,
+        selectionExplanation: selExpl,
+        requestSummary: reqSummary,
         outcome: { status: "call_failed", intent, reason },
       });
       evidenceAssessments.push(makeFallbackAssessment(intent, reason));
@@ -346,7 +381,7 @@ function finalizeRun(
   evidenceAssessments: EvidenceAssessment[],
   settlementProvenance: SettlementProvenance[],
 ): ReferenceAgentRunResult {
-  const decisionPacket = createDecisionPacket(runId, proposedAction, evidenceAssessments);
+  const decisionPacket = createDecisionPacket(runId, proposedAction, evidenceAssessments, requirementPlan.userQuestion);
   const decisionReplay = replayDecisionPacket(decisionPacket);
   const actionDecision = decisionPacket.actionDecision;
   const agentState = decisionToState(actionDecision.decision);
@@ -354,11 +389,77 @@ function finalizeRun(
   const paidCallCount = settlementProvenance.length;
   const totalSettledMicroUsdc = settlementProvenance.reduce((sum, p) => sum + p.settledMicroUsdc, 0);
 
+  const evidenceQuestions: EvidenceQuestionTrace[] = requirementPlan.requirements.map((req) => {
+    const matchingIntel = acquiredIntelligence.filter((a) => a.intent === req.intent);
+    const matchingAssessment = evidenceAssessments.find((a) => a.intent === req.intent);
+
+    const minerRequests: MinerRequestTrace[] = matchingIntel.map((ai) => ({
+      minerId: ai.minerId,
+      minerName: ai.minerName,
+      rank: ai.rank,
+      endpoint: ai.endpoint,
+      method: ai.method,
+      advertisedPriceMicroUsdc: ai.advertisedPriceMicroUsdc,
+      selectionExplanation: ai.selectionExplanation,
+      requestSummary: ai.requestSummary,
+    }));
+
+    const minerResponses: MinerResponseTrace[] = matchingIntel.map((ai) => {
+      const outcome = ai.outcome;
+      if (outcome.status === "acquired") {
+        return {
+          minerId: ai.minerId,
+          minerName: ai.minerName,
+          status: outcome.status,
+          settledMicroUsdc: outcome.settledMicroUsdc,
+          ...(outcome.assessment.providerConfidence !== undefined ? { providerConfidence: outcome.assessment.providerConfidence } : {}),
+          ...(outcome.assessment.providerFacts ? { providerFacts: outcome.assessment.providerFacts } : {}),
+        };
+      }
+      return {
+        minerId: ai.minerId,
+        minerName: ai.minerName,
+        status: outcome.status,
+        settledMicroUsdc: 0,
+        ...("reason" in outcome && outcome.reason ? { reason: outcome.reason } : {}),
+      };
+    });
+
+    const isSatisfied = actionDecision.satisfiedRequirements.some((id) => id === req.id || id.includes(req.intent.toLowerCase()));
+    const isBlocking = actionDecision.blockingEvidence.some((ref) => ref.startsWith(req.intent));
+    const reqStatus: EvidenceQuestionTrace["requirementStatus"] = isBlocking
+      ? "BLOCKING"
+      : isSatisfied
+      ? "SATISFIED"
+      : req.mandatory
+      ? "UNSATISFIED"
+      : "OPTIONAL";
+
+    const decisionContribution = deriveEvidenceContribution(req.intent, actionDecision, matchingAssessment, req.minimumQuality);
+
+    return {
+      id: req.id ?? `req-${req.intent.toLowerCase()}`,
+      question: req.question ?? `Verify ${req.intent} evidence`,
+      whyItMatters: req.whyItMatters ?? req.rationale,
+      intent: req.intent,
+      mandatory: req.mandatory,
+      minimumQuality: req.minimumQuality,
+      reasonCode: req.reasonCode,
+      condition: req.condition,
+      minerRequests,
+      minerResponses,
+      requirementStatus: reqStatus,
+      decisionContribution,
+    };
+  });
+
   return {
     runId,
     timestamp,
+    userQuestion: requirementPlan.userQuestion,
     proposedAction,
     requirementPlan,
+    evidenceQuestions,
     acquiredIntelligence,
     evidenceAssessments,
     actionDecision,
@@ -373,3 +474,4 @@ function finalizeRun(
     settlementProvenance,
   };
 }
+
