@@ -74,3 +74,83 @@ export interface DiscoveryResponse {
   totalRegistrations: number;
   discovery: Record<string, DiscoveryIntentSummary>;
 }
+
+// Live Decision types (POST /v1/agent/run)
+export type AgentActionState = "AUTHORIZED" | "HELD_FOR_REVIEW" | "REJECTED";
+
+export interface IntelligenceOutcomeSummary {
+  status: "acquired" | "discovery_failed" | "no_compatible_miner" | "call_failed" | "skipped";
+  intent: string;
+  reason?: string;
+  settledMicroUsdc?: number;
+  settlementMetadata?: unknown;
+  assessment?: EvidenceAssessment;
+}
+
+export interface AcquiredIntelligence {
+  intent: string;
+  logicalCallId: string;
+  minerId: string;
+  minerName: string;
+  rank: number;
+  endpoint: string;
+  method: string;
+  advertisedPriceMicroUsdc: number;
+  outcome: IntelligenceOutcomeSummary;
+}
+
+export interface UnresolvedCondition {
+  reasonCode: string;
+  requiredCondition: string;
+  description: string;
+  required: string;
+}
+
+export interface DecisionResolution {
+  decision: Decision;
+  resolved: boolean;
+  unresolvedConditions: UnresolvedCondition[];
+  outcomeLabel: string;
+}
+
+export interface PlannedRequirement {
+  intent: string;
+  mandatory: boolean;
+  minimumQuality: string;
+  reasonCode: string;
+  rationale: string;
+  condition: string;
+}
+
+export interface EvidenceRequirementPlan {
+  actionType: string;
+  riskClass: string;
+  requirements: PlannedRequirement[];
+}
+
+export interface LiveDecisionRunResult {
+  runId: string;
+  timestamp: string;
+  proposedAction: ProposedAction;
+  requirementPlan: EvidenceRequirementPlan;
+  acquiredIntelligence: AcquiredIntelligence[];
+  evidenceAssessments: EvidenceAssessment[];
+  actionDecision: ActionDecision;
+  resolution: DecisionResolution;
+  agentState: AgentActionState;
+  agentStateLabel: string;
+  agentStateSupport: string;
+  decisionPacket: { version: 1; decisionId: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
+  decisionReplay: DecisionReplay;
+  paidCallCount: number;
+  totalSettledMicroUsdc: number;
+  settlementProvenance: Array<{
+    runId: string;
+    logicalCallId: string;
+    intent: string;
+    minerId: string;
+    minerName: string;
+    settledMicroUsdc: number;
+    settlementMetadata: unknown;
+  }>;
+}

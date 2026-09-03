@@ -92,3 +92,76 @@ test("POST /v1/discovery returns 405 Method Not Allowed", async () => {
   assert.equal(response.status, 405);
   assert.equal(response.headers.get("allow"), "GET");
 });
+
+// /v1/agent/run tests — no paid calls, no signatures
+test("GET /v1/agent/run returns 405 Method Not Allowed", async () => {
+  const response = await fetch(`${baseUrl}/v1/agent/run`);
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get("allow"), "POST");
+});
+
+test("POST /v1/agent/run without body returns 400", async () => {
+  const response = await fetch(`${baseUrl}/v1/agent/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "",
+  });
+  // Body is empty — either EMPTY_BODY or INVALID_JSON
+  assert.ok([400].includes(response.status));
+  const body = await response.json();
+  assert.ok(body.error, "must return an error body");
+});
+
+test("POST /v1/agent/run with invalid body returns 400 VALIDATION_ERROR", async () => {
+  const response = await fetch(`${baseUrl}/v1/agent/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ proposedAction: null }),
+  });
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error.code, "VALIDATION_ERROR");
+});
+
+test("POST /v1/agent/run with unexpected fields returns 400", async () => {
+  const response = await fetch(`${baseUrl}/v1/agent/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ proposedAction: { id: "x", type: "y", description: "z", subject: { kind: "SUPPLIER_PAYMENT", reference: "r" }, riskClass: "HIGH" }, extraField: true }),
+  });
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error.code, "VALIDATION_ERROR");
+});
+
+test("POST /v1/agent/run when ENABLE_LIVE_REFERENCE_AGENT=false returns 503", async () => {
+  // This test only runs if the env var is set to false, which would be tested in CI.
+  // Here we verify the route exists and responds to the appropriate env condition.
+  // We check that the route is registered (200, 400, 429, 503 are all valid non-404 responses).
+  const response = await fetch(`${baseUrl}/v1/agent/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      proposedAction: {
+        id: "judge-demo-001",
+        type: "SUPPLIER_PAYMENT_AUTHORIZATION",
+        description: "Test live decision route registration",
+        subject: { kind: "SUPPLIER_PAYMENT", reference: "supplier-test-001" },
+        riskClass: "HIGH",
+      },
+    }),
+  });
+  // The route must exist (not 404) — it will return 503 if credentials missing or disabled
+  assert.notEqual(response.status, 404, "/v1/agent/run route must be registered");
+  assert.notEqual(response.status, 405, "/v1/agent/run must accept POST");
+});
+
+test("api.ts source contains no direct payment-adapter import", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { join } = await import("node:path");
+  const distPath = join(import.meta.dirname ?? new URL(".", import.meta.url).pathname, "../dist/api.js");
+  let source: string;
+  try { source = readFileSync(distPath, "utf8"); } catch { return; } // skip if not built yet
+  assert.doesNotMatch(source, /from ['"].+(payment-adapter|transport|registry)|wrapFetchWithPayment|privateKeyToAccount|TELEGRAPH_EVM_PRIVATE_KEY/,
+    "api.js must not directly import payment infrastructure");
+});

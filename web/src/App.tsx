@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { evaluateDecision, fetchDiscovery } from "./api";
-import type { DiscoveryResponse, EvaluationResponse, ProposedAction } from "./contracts";
+import { evaluateDecision, fetchDiscovery, runLiveDecision } from "./api";
+import type { DiscoveryResponse, EvaluationResponse, LiveDecisionRunResult, ProposedAction } from "./contracts";
 import { scenarioById, scenarios, type ScenarioId } from "./scenarios";
 
 const readable = (value: string) =>
@@ -34,6 +34,20 @@ export default function App() {
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [discoveryError, setDiscoveryError] = useState("");
 
+  // Live Decision State
+  const [liveResult, setLiveResult] = useState<LiveDecisionRunResult | null>(null);
+  const [liveLoading, setLiveLoading] = useState(false);
+  const [liveError, setLiveError] = useState("");
+  const [showLiveReplay, setShowLiveReplay] = useState(false);
+
+  const liveAction: ProposedAction = {
+    id: "live-decision-001",
+    type: "SUPPLIER_PAYMENT_AUTHORIZATION",
+    description: "Authorize payment to updated supplier destination — risk screening required",
+    subject: { kind: "SUPPLIER_PAYMENT", reference: "supplier-northstar-042", supplierUrl: "https://example.com/" },
+    riskClass: "HIGH",
+  };
+
   async function loadDiscovery() {
     setDiscoveryLoading(true);
     setDiscoveryError("");
@@ -47,9 +61,25 @@ export default function App() {
     }
   }
 
+  async function submitLiveDecision() {
+    setLiveLoading(true);
+    setLiveError("");
+    setLiveResult(null);
+    setShowLiveReplay(false);
+    try {
+      const data = await runLiveDecision(liveAction);
+      setLiveResult(data);
+    } catch (err) {
+      setLiveError(err instanceof Error ? err.message : "Live decision temporarily unavailable");
+    } finally {
+      setLiveLoading(false);
+    }
+  }
+
   useEffect(() => {
     loadDiscovery();
   }, []);
+
 
   function chooseScenario(id: ScenarioId) {
     setCondition(id);
@@ -120,11 +150,11 @@ export default function App() {
           <a href="#architecture">Architecture</a>
           <a href="#contradiction">Contradiction Case</a>
           <a href="#live-evidence">Live Evidence</a>
-          <a href="#discovery">Live Discovery</a>
+          <a href="#live-decision">Live Decision</a>
           <a href="#evaluate" className="nav-cta">Evaluate Action</a>
         </nav>
         <span className="system-state">
-          <i /> DETERMINISTIC CORE · FREE TELEGRAPH DISCOVERY
+          <i /> DETERMINISTIC · LIVE TELEGRAPH
         </span>
       </header>
 
@@ -133,7 +163,7 @@ export default function App() {
         <div className="hero-main">
           <p className="eyebrow">DECISION CONTROL LAYER FOR AUTONOMOUS AGENTS</p>
           <h1>
-            The Decision Layer<br />for <em>Autonomous Agents.</em>
+            Verify Intelligence.<br /><em>Bound Action.</em>
           </h1>
           <p className="lede">
             <strong>Intelligence tells an agent what is happening.</strong>
@@ -158,9 +188,9 @@ export default function App() {
             </div>
           </div>
           <div className="hero-actions">
-            <a href="#evaluate" className="btn-primary">Evaluate an Action</a>
+            <a href="#live-decision" className="btn-primary">Try Live Decision</a>
             <a href="#contradiction" className="btn-secondary">The Contradiction Case</a>
-            <a href="#discovery" className="btn-secondary">Live Discovery Inspector</a>
+            <a href="#evaluate" className="btn-secondary">Evaluate Action</a>
           </div>
         </div>
         <div className="hero-side">
@@ -297,7 +327,7 @@ export default function App() {
               <div><dt>Selected Miner</dt><dd>DegenLens (10002)</dd></div>
               <div><dt>Endpoint</dt><dd><code>GET /anomaly/check</code></dd></div>
               <div><dt>Base Sepolia Block</dt><dd>46,306,281</dd></div>
-              <div><dt>Settlement Tx</dt><dd><code>0x1a26...c2ff</code></dd></div>
+              <div><dt>Settlement Tx</dt><dd><a href="https://sepolia.basescan.org/tx/0x1a2647c527abc32fe5c3f16fcb2bff12a21cbde7be13b4f93b2a27a7de6c2ff" target="_blank" rel="noopener noreferrer" className="tx-link"><code>0x1a26...c2ff</code></a></dd></div>
               <div><dt>Miner Verdict</dt><dd>out_of_coverage</dd></div>
               <div><dt>Confidence</dt><dd>0 (0%)</dd></div>
             </dl>
@@ -320,7 +350,7 @@ export default function App() {
               <div><dt>Selected Miner</dt><dd>NetWire URL Scan (7334)</dd></div>
               <div><dt>Endpoint</dt><dd><code>GET /url-scan</code></dd></div>
               <div><dt>Base Sepolia Block</dt><dd>46,306,603</dd></div>
-              <div><dt>Settlement Tx</dt><dd><code>0xcd9a...1882</code></dd></div>
+              <div><dt>Settlement Tx</dt><dd><a href="https://sepolia.basescan.org/tx/0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882" target="_blank" rel="noopener noreferrer" className="tx-link"><code>0xcd9a...1882</code></a></dd></div>
               <div><dt>Miner Verdict</dt><dd>safe: true, risk: low</dd></div>
               <div><dt>Confidence</dt><dd>0.93 (93%)</dd></div>
             </dl>
@@ -343,7 +373,7 @@ export default function App() {
               <div><dt>Selected Miner</dt><dd>TxLens (9002)</dd></div>
               <div><dt>Endpoint</dt><dd><code>GET /check-tx</code></dd></div>
               <div><dt>Base Sepolia Block</dt><dd>46,307,152</dd></div>
-              <div><dt>Settlement Tx</dt><dd><code>0x173c...5e9</code></dd></div>
+              <div><dt>Settlement Tx</dt><dd><a href="https://sepolia.basescan.org/tx/0x173cd26ca347faf6de0a35ab310d8e7254515e25f9d3a40c35934e2dcc9ef5e9" target="_blank" rel="noopener noreferrer" className="tx-link"><code>0x173c...5e9</code></a></dd></div>
               <div><dt>Miner Verdict</dt><dd>status: not_found</dd></div>
               <div><dt>Confidence</dt><dd>1.0 (100%)</dd></div>
             </dl>
@@ -448,6 +478,253 @@ export default function App() {
         )}
       </section>
 
+      {/* Live Decision Section */}
+      <section className="live-decision-section" id="live-decision">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">LIVE TELEGRAPH INTELLIGENCE · BASE SEPOLIA</p>
+            <h2>See an agent ask Nexora whether it should proceed.</h2>
+          </div>
+          <p>
+            A proposed supplier payment is submitted. Nexora acquires real intelligence from Telegraph miners,
+            evaluates the evidence quality, and returns a deterministic decision — ALLOW, REVIEW, or BLOCK.
+          </p>
+        </div>
+
+        <div className="live-decision-proposal">
+          <p className="eyebrow">AGENT PROPOSAL</p>
+          <div className="proposal-card">
+            <div className="proposal-row"><span>Action</span><strong>{liveAction.type}</strong></div>
+            <div className="proposal-row"><span>Description</span><strong>{liveAction.description}</strong></div>
+            <div className="proposal-row"><span>Supplier Reference</span><code>{liveAction.subject.reference}</code></div>
+            <div className="proposal-row"><span>Supplier URL</span><code>{liveAction.subject.supplierUrl}</code></div>
+            <div className="proposal-row"><span>Risk Class</span><code>{liveAction.riskClass}</code></div>
+          </div>
+        </div>
+
+        <div className="live-decision-trigger">
+          <button
+            className="btn-live-decision"
+            type="button"
+            disabled={liveLoading}
+            onClick={submitLiveDecision}
+          >
+            {liveLoading ? (
+              <><span className="spinner" aria-hidden="true" /> Acquiring intelligence…</>
+            ) : (
+              <>Run Live Decision &rarr;</>
+            )}
+          </button>
+          <p className="live-caution">
+            This run makes real Telegraph calls and settles on Base Sepolia.
+            Rate limited to one run per minute. Maximum 0.03 USDC per run.
+          </p>
+        </div>
+
+        {liveError && (
+          <div className="live-error" role="alert">
+            <strong>Live decision unavailable</strong>
+            <span>{liveError}</span>
+          </div>
+        )}
+
+        {liveResult && (
+          <div className="live-result">
+
+            {/* Step 1: Evidence Needed */}
+            <div className="live-step">
+              <p className="eyebrow">EVIDENCE NEEDED</p>
+              <h3>What Nexora required before deciding</h3>
+              <div className="requirements-grid">
+                {liveResult.requirementPlan.requirements.map((req) => (
+                  <div className="requirement-card" key={req.intent}>
+                    <span className="req-intent">{readable(req.intent)}</span>
+                    <span className={`req-mandatory ${req.mandatory ? "mandatory" : "optional"}`}>{req.mandatory ? "Required" : "Optional"}</span>
+                    <span className="req-rationale">{req.rationale}</span>
+                    <code className="req-quality">Min quality: {req.minimumQuality}</code>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 2: Live Telegraph Intelligence */}
+            <div className="live-step">
+              <p className="eyebrow">LIVE TELEGRAPH INTELLIGENCE</p>
+              <h3>Miners selected for this run</h3>
+              <div className="intel-grid">
+                {liveResult.acquiredIntelligence.map((item) => (
+                  <div className="intel-card" key={item.intent}>
+                    <div className="intel-card-head">
+                      <span className="intel-intent">{readable(item.intent)}</span>
+                      <span className={`intel-status ${item.outcome.status}`}>{item.outcome.status.replace(/_/g, " ")}</span>
+                    </div>
+                    {item.minerId !== "NONE" && item.minerId !== "UNKNOWN" && (
+                      <dl className="intel-dl">
+                        <div><dt>Provider</dt><dd>{item.minerName}</dd></div>
+                        <div><dt>Telegraph Rank</dt><dd>#{item.rank}</dd></div>
+                        <div><dt>Endpoint</dt><dd><code>{item.method} {item.endpoint}</code></dd></div>
+                        <div><dt>Advertised Price</dt><dd>{(item.advertisedPriceMicroUsdc / 1_000_000).toFixed(4)} USDC</dd></div>
+                        <div><dt>Call ID</dt><dd><code className="call-id">{item.logicalCallId}</code></dd></div>
+                      </dl>
+                    )}
+                    {item.outcome.status !== "acquired" && (
+                      <p className="intel-reason">{item.outcome.reason ?? "No compatible provider found"}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 3: Evidence Quality */}
+            <div className="live-step">
+              <p className="eyebrow">EVIDENCE QUALITY</p>
+              <h3>What Nexora trusts, questions, or cannot verify</h3>
+              <div className="live-evidence-grid">
+                {liveResult.evidenceAssessments.map((item) => (
+                  <div className={`live-evidence-card q-${item.quality.toLowerCase()}`} key={item.intent}>
+                    <div className="lev-head">
+                      <span>{readable(item.intent)}</span>
+                      <span className={`quality-badge q-${item.quality.toLowerCase()}`}>{item.quality}</span>
+                    </div>
+                    <dl className="lev-dl">
+                      <div><dt>Coverage</dt><dd>{readable(item.coverage)}</dd></div>
+                      <div><dt>Verification</dt><dd>{readable(item.verification)}</dd></div>
+                    </dl>
+                    {item.missingEvidence.length > 0 && (
+                      <ul className="lev-missing">
+                        {item.missingEvidence.map((m, i) => <li key={i}>{m}</li>)}
+                      </ul>
+                    )}
+                    {item.contradictions.length > 0 && (
+                      <ul className="lev-contradictions">
+                        {item.contradictions.map((c, i) => <li key={i}>{String(c)}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Step 4: Nexora Decision */}
+            <div className={`live-decision-banner ${liveResult.actionDecision.decision.toLowerCase()}`}>
+              <div className="live-step">
+                <p className="eyebrow">NEXORA DECISION</p>
+                <h3 className="decision-value">{liveResult.actionDecision.decision}</h3>
+                <p>{liveResult.actionDecision.reasons.map(readable).join(" · ")}</p>
+                <div className="decision-stat-row">
+                  <span><b>{liveResult.actionDecision.satisfiedRequirements.length}</b> satisfied</span>
+                  <span><b>{liveResult.actionDecision.unsatisfiedRequirements.length}</b> unresolved</span>
+                  <span><b>{liveResult.actionDecision.blockingEvidence.length}</b> blocking</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 5: Agent Response */}
+            <div className="live-step">
+              <p className="eyebrow">AGENT RESPONSE</p>
+              <div className={`agent-state-card ${liveResult.agentState.toLowerCase()}`}>
+                <h3>{liveResult.agentState}</h3>
+                <p className="agent-label">{liveResult.agentStateLabel}</p>
+                <p className="agent-support">{liveResult.agentStateSupport}</p>
+              </div>
+            </div>
+
+            {/* Step 6: Why */}
+            <div className="live-step">
+              <p className="eyebrow">WHY</p>
+              <h3>Plain language explanation</h3>
+              {liveResult.resolution.resolved ? (
+                <p className="resolution-resolved">
+                  All required evidence was satisfied. The agent can proceed.
+                </p>
+              ) : (
+                <ul className="unresolved-list">
+                  {liveResult.resolution.unresolvedConditions.map((cond, i) => (
+                    <li key={i}>
+                      <strong>{cond.requiredCondition}</strong>
+                      <span>{cond.description}</span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+
+            {/* Step 7: Settlement Provenance */}
+            {liveResult.settlementProvenance.length > 0 && (
+              <div className="live-step">
+                <p className="eyebrow">SETTLEMENT PROVENANCE</p>
+                <h3>Actual payments for this run</h3>
+                <div className="provenance-grid">
+                  {liveResult.settlementProvenance.map((p) => (
+                    <div className="provenance-card" key={p.logicalCallId}>
+                      <div><span>Intent</span><strong>{readable(p.intent)}</strong></div>
+                      <div><span>Provider</span><strong>{p.minerName}</strong></div>
+                      <div><span>Settled</span><strong>{(p.settledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong></div>
+                      <div><span>Call ID</span><code className="call-id">{p.logicalCallId}</code></div>
+                    </div>
+                  ))}
+                </div>
+                <p className="provenance-total">
+                  Total settled: <strong>{(liveResult.totalSettledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong> across {liveResult.paidCallCount} paid {liveResult.paidCallCount === 1 ? "call" : "calls"}
+                </p>
+              </div>
+            )}
+
+            {/* Step 8: Decision Replay */}
+            <div className="live-step">
+              <button
+                className="replay-trigger"
+                type="button"
+                aria-expanded={showLiveReplay}
+                onClick={() => setShowLiveReplay(!showLiveReplay)}
+              >
+                <span>{showLiveReplay ? "Hide Decision Replay" : "View Decision Replay & Audit Proof"}</span>
+                <b>{liveResult.decisionReplay.validation.status} ↗</b>
+              </button>
+              {showLiveReplay && (
+                <div className="replay">
+                  <div className="replay-head">
+                    <div>
+                      <p className="eyebrow">DECISION REPLAY · INTEGRITY PROOF</p>
+                      <h3>
+                        {liveResult.decisionReplay.validation.matches
+                          ? "Deterministic Integrity Verified: identical inputs → identical decision."
+                          : "Integrity Mismatch: recorded decision differs from recalculation."}
+                      </h3>
+                    </div>
+                    <span className={liveResult.decisionReplay.validation.matches ? "match" : "mismatch"}>
+                      {liveResult.decisionReplay.validation.matches ? "✓ VERIFIED MATCH" : "× MISMATCH"}
+                    </span>
+                  </div>
+                  <div className="replay-meta">
+                    <div><small>Run ID</small><code>{liveResult.runId}</code></div>
+                    <div><small>Decision ID</small><code>{liveResult.decisionReplay.decisionId}</code></div>
+                    <div><small>SHA-256 Fingerprint</small><code>{liveResult.decisionReplay.fingerprint}</code></div>
+                    <div><small>Recorded / Recomputed</small>
+                      <code>{liveResult.decisionReplay.validation.recordedDecision} / {liveResult.decisionReplay.validation.recomputedDecision}</code>
+                    </div>
+                  </div>
+                  <div className="timeline-wrap">
+                    <h4>Replay Timeline</h4>
+                    <ol className="timeline">
+                      {liveResult.decisionReplay.timeline.map((item) => (
+                        <li key={item.order}>
+                          <span>{String(item.order).padStart(2, "0")}</span>
+                          <div>
+                            <strong>{item.title}</strong>
+                            <p>{item.summary}</p>
+                          </div>
+                        </li>
+                      ))}
+                    </ol>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </section>
+
       {/* Decision Evaluator Workspace */}
       <section className="workspace" id="evaluate">
         <div className="section-heading">
@@ -494,7 +771,7 @@ export default function App() {
               <p className="eyebrow">02 · EVIDENCE CONTEXT SCENARIOS</p>
               <h2>Choose an Evidence Scenario</h2>
             </div>
-            <p>Proven live-derived and synthetic test conditions for deterministic judge evaluation.</p>
+            <p>Choose a scenario, evaluate the action, then inspect why Nexora returned ALLOW, REVIEW, or BLOCK.</p>
           </div>
 
           <div className="condition-grid" role="radiogroup" aria-label="Evidence conditions">

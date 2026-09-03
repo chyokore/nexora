@@ -6,10 +6,14 @@ import { eligibleSelections } from "./selection.js";
 import { DISCOVERY_INTENTS, type DiscoveryIntent, type Miner } from "./types.js";
 import type { ProposedAction } from "./action-policy.js";
 import type { EvidenceAssessment } from "./types.js";
+import { LiveDecisionGuard } from "./live-guard.js";
+import { runReferenceAgent, requireExecutionEnvironment, type ReferenceAgentRunResult } from "./reference-agent.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
-const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify"]);
+const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify", "/v1/agent/run"]);
+/** Shared in-process guard — stats reset on server restart. */
+const liveGuard = new LiveDecisionGuard();
 const LOCAL_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
 
 export interface ApiServerOptions { allowedOrigins?: readonly string[]; logRequests?: boolean }
@@ -113,6 +117,19 @@ export async function fetchDiscoverySummary(nodeUrl: string, fetchFn: typeof fet
   };
 }
 
+function agentRunInput(value: unknown): { proposedAction: ProposedAction } {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new RequestError(400, "VALIDATION_ERROR", "Agent run request is invalid", ["request:not_object"]);
+  }
+  const record = value as Record<string, unknown>;
+  const details: string[] = [];
+  const allowed = new Set(["proposedAction"]);
+  if (Object.keys(record).some((k) => !allowed.has(k))) details.push("request:unexpected_fields");
+  if (!validateProposedAction(record.proposedAction)) details.push("request:invalid_proposed_action");
+  if (details.length > 0) throw new RequestError(400, "VALIDATION_ERROR", "Agent run request is invalid", details);
+  return record as { proposedAction: ProposedAction };
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): Promise<void> {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
   if (!routes.has(path)) { sendError(response, 404, "NOT_FOUND", "Route not found"); return; }
@@ -132,6 +149,51 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
     return;
   }
   const body = await readJson(request);
+  if (path === "/v1/agent/run") {
+    // Emergency disable switch
+    if (!liveGuard.isEnabled()) {
+      sendError(response, 503, "LIVE_AGENT_DISABLED", "Live decisions are currently disabled", ["Set ENABLE_LIVE_REFERENCE_AGENT=true to enable"]);
+      return;
+    }
+    const { proposedAction } = agentRunInput(body);
+    // Rate limiting — client key is IP if available, otherwise a process-level key
+    const clientKey = (request.socket.remoteAddress ?? "unknown").replace(/^::ffff:/, "");
+    const gate = liveGuard.canRun(clientKey);
+    if (!gate.allowed) {
+      sendError(response, 429, "RATE_LIMITED", "Too many live decision requests", [gate.reason ?? "RATE_LIMITED"]);
+      return;
+    }
+    // Resolve execution environment — this will throw if credentials are absent
+    let environment;
+    try {
+      const approvedAsset = process.env.TELEGRAPH_APPROVED_ASSET ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+      environment = requireExecutionEnvironment(process.env, approvedAsset);
+    } catch (err) {
+      sendError(response, 503, "ENVIRONMENT_NOT_CONFIGURED", "Live decisions are not configured on this deployment", [err instanceof Error ? err.message : "Missing credentials"]);
+      return;
+    }
+    const nodeUrl = process.env.TELEGRAPH_NODE_URL ?? "http://13.237.89.59:7044";
+    // Register the run with the guard (will assign run ID internally via runReferenceAgent)
+    // We begin the guard BEFORE the async call so concurrency accounting is correct
+    const beginClientKey = clientKey;
+    liveGuard.beginRun(randomUUID(), beginClientKey);
+    let result: ReferenceAgentRunResult;
+    try {
+      result = await runReferenceAgent({
+        proposedAction,
+        nodeUrl,
+        fetchRegistry: fetch,
+        environment,
+      });
+    } catch (err) {
+      liveGuard.endRun("REVIEW", 0, 0);
+      sendError(response, 500, "AGENT_RUN_FAILED", "The live decision run encountered an unexpected error");
+      return;
+    }
+    liveGuard.endRun(result.actionDecision.decision, result.totalSettledMicroUsdc, result.paidCallCount);
+    sendJson(response, 200, sanitizeReplayValue(result));
+    return;
+  }
   if (path === "/v1/decisions/evaluate") {
     const input = evaluationInput(body);
     const decisionPacket = createDecisionPacket(decisionIdFor(input), input.proposedAction, input.evidenceAssessments);
@@ -142,6 +204,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
   const decisionReplay = replayDecisionPacket(body as DecisionPacket);
   sendJson(response, 200, decisionReplay);
 }
+
 
 export function createApiServer(options: ApiServerOptions = {}): Server {
   const allowedOrigins = new Set(options.allowedOrigins ?? resolveAllowedOrigins());

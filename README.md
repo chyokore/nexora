@@ -1,12 +1,13 @@
 # Nexora
 
-The Decision Layer for Autonomous Agents.
+Verify Intelligence. Bound Action.
 
-> **"Intelligence tells an agent what is happening. Nexora decides what the agent should do next."**
+> **"Intelligence is not a decision. Telegraph provides intelligence. Nexora decides whether an agent has enough reliable evidence to proceed."**
 
 - **Public Web App:** https://nexora-seven-lemon.vercel.app
 - **Product API Health:** https://nexora-api-3efi.onrender.com/health
 - **Live Discovery Endpoint:** https://nexora-api-3efi.onrender.com/v1/discovery
+- **Live Decision Endpoint:** https://nexora-api-3efi.onrender.com/v1/agent/run
 
 Nexora is a **Telegraph Protocol Hackathon Season I — Track 3: Applications** submission.
 

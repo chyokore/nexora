@@ -132,8 +132,15 @@ describe("judge-facing experience", () => {
   it("renders the homepage positioning and core message", () => {
     mockApi("ALLOW");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /Decision Layer.*Autonomous Agents/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /Verify Intelligence.*Bound Action/ })).toBeVisible();
     expect(screen.getByText(/Intelligence tells an agent what is happening/)).toBeVisible();
+  });
+
+  it("renders the Live Decision section and Run Live Decision button", () => {
+    mockApi("ALLOW");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: /See an agent ask Nexora whether it should proceed/ })).toBeVisible();
+    expect(screen.getByRole("button", { name: /Run Live Decision/ })).toBeVisible();
   });
 
   it("renders architecture snapshot and contradiction spotlight", () => {

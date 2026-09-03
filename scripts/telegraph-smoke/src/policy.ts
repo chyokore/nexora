@@ -34,6 +34,54 @@ export class RunLedger {
   }
 }
 
+/**
+ * A run-scoped payment ledger for Live Decision runs.
+ *
+ * Each live decision run is assigned an immutable server-generated run ID.
+ * Logical call IDs for each intent are derived deterministically from that
+ * run ID: `<runId>:FRAUD_DETECTION`, `<runId>:URL_SCAN`, etc.
+ *
+ * The same intent within one run can never be authorized twice.
+ * Concurrent runs have distinct run IDs and therefore distinct payment identities.
+ * The public user cannot choose or supply these identifiers.
+ *
+ * Note on idempotency: in-process deduplication is exact. After a process
+ * restart the ledger is fresh; per-call budget caps and concurrency limits
+ * provide the hard financial boundary in that case.
+ */
+export class LiveRunLedger {
+  readonly #allowedIds: ReadonlySet<string>;
+  readonly #used = new Set<string>();
+  #cumulative: number;
+
+  constructor(runId: string, initialCumulative = 0) {
+    if (typeof runId !== "string" || runId.length === 0) throw new Error("LiveRunLedger requires a non-empty run ID");
+    if (!Number.isSafeInteger(initialCumulative) || initialCumulative < 0 || initialCumulative > PAYMENT_POLICY.maxCumulativeMicroUsdc) throw new Error("Invalid initial cumulative amount");
+    this.#cumulative = initialCumulative;
+    // Derive the complete allowlist for this run from the run ID and paid intents
+    this.#allowedIds = new Set(PAID_INTENTS.map((intent) => `${runId}:${intent}`));
+  }
+
+  authorize(logicalCallId: string, intent: Intent, selection: Selection, challenge: PaymentChallenge, approvedAsset?: string): number {
+    if (!this.#allowedIds.has(logicalCallId)) throw new Error(`Unknown or out-of-scope logical call ID: ${logicalCallId}`);
+    if (this.#used.has(logicalCallId)) throw new Error("Duplicate logical call ID — payment already authorized for this intent in this run");
+    if (!PAID_INTENTS.includes(intent)) throw new Error("Unexpected intent");
+    if (!selection.miner.supported_intents.includes(intent)) throw new Error("Unexpected selected miner");
+    validateChallenge(challenge, approvedAsset);
+    const amount = parseAmount(challenge.amount);
+    if (this.#used.size + 1 > PAYMENT_POLICY.maxLogicalCalls) throw new Error("Logical call limit exceeded");
+    if (this.#cumulative + amount > PAYMENT_POLICY.maxCumulativeMicroUsdc) throw new Error("Cumulative payment budget exceeded");
+    this.#used.add(logicalCallId);
+    this.#cumulative += amount;
+    return this.#cumulative;
+  }
+
+  /** Derive the logical call ID for a given intent within this run. */
+  static callId(runId: string, intent: Intent): string {
+    return `${runId}:${intent}`;
+  }
+}
+
 export function parseAmount(value: string | number): number {
   let normalized: number;
   if (typeof value === "number") normalized = value;

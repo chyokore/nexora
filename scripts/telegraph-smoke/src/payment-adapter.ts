@@ -1,6 +1,6 @@
 import { classifyConformance } from "./conformance.js";
 import { normalizeEvidence } from "./normalization.js";
-import { RunLedger } from "./policy.js";
+import { RunLedger, LiveRunLedger } from "./policy.js";
 import { validateChallenge } from "./policy.js";
 import { parseChallenge } from "./challenge.js";
 import { buildMinerRequest, inspectUnsignedChallenge, type FetchLike } from "./transport.js";
@@ -24,7 +24,7 @@ export async function officialPaymentFetch(privateKey: `0x${string}`, network: "
   return wrapFetchWithPayment(baseFetch, client);
 }
 
-export async function executeGuardedPaidCall(options: { nodeUrl: string; logicalTestId: string; intent: Intent; selection: Selection; payload: Record<string, string | number>; environment: ExecutionEnvironment; ledger: RunLedger; unsignedFetch?: FetchLike; paymentFetchFactory?: PaymentFetchFactory; }): Promise<CaptureRecord> {
+export async function executeGuardedPaidCall(options: { nodeUrl: string; logicalTestId: string; intent: Intent; selection: Selection; payload: Record<string, string | number>; environment: ExecutionEnvironment; ledger: RunLedger | LiveRunLedger; unsignedFetch?: FetchLike; paymentFetchFactory?: PaymentFetchFactory; }): Promise<CaptureRecord> {
   const started = Date.now();
   const challenge = await inspectUnsignedChallenge(options.nodeUrl, options.selection, options.payload, options.unsignedFetch ?? fetch);
   options.ledger.authorize(options.logicalTestId, options.intent, options.selection, challenge, options.environment.approvedAsset);
