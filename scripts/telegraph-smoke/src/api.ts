@@ -168,8 +168,10 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
       return;
     }
     const { proposedAction } = agentRunInput(body);
-    // Rate limiting — client key is IP if available, otherwise a process-level key
-    const clientKey = (request.socket.remoteAddress ?? "unknown").replace(/^::ffff:/, "");
+    // Rate limiting — extract client IP from x-forwarded-for header behind proxies, or fallback to socket address
+    const forwardedHeader = request.headers["x-forwarded-for"];
+    const rawIp = (typeof forwardedHeader === "string" ? forwardedHeader.split(",")[0]?.trim() : null) || request.socket?.remoteAddress || "unknown";
+    const clientKey = rawIp.replace(/^::ffff:/, "");
     const gate = liveGuard.canRun(clientKey);
     if (!gate.allowed) {
       sendError(response, 429, "RATE_LIMITED", "Too many live decision requests", [gate.reason ?? "RATE_LIMITED"]);
