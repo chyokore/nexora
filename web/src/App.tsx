@@ -12,6 +12,27 @@ const readable = (value: string) =>
 
 const percent = (value?: number) => (value === undefined ? "Not supplied" : `${Math.round(value * 100)}%`);
 
+const formatDecisionExplanation = (
+  decision: string,
+  reasons: readonly string[],
+  unresolvedConditions?: Array<{ description: string }>
+): string => {
+  if (unresolvedConditions && unresolvedConditions.length > 0) {
+    const details = unresolvedConditions.map((c) => c.description).join("; ");
+    return `${readable(decision)} required: ${details}.`;
+  }
+  if (decision === "ALLOW") {
+    return "Authorization approved: all mandatory evidence requirements satisfied.";
+  }
+  if (decision === "REVIEW") {
+    return "Review required: one or more required evidence items are missing or below required quality.";
+  }
+  if (decision === "BLOCK") {
+    return "Authorization blocked: verified adverse evidence or explicit policy violation detected.";
+  }
+  return reasons.map(readable).join(" · ");
+};
+
 export default function App() {
   const [condition, setCondition] = useState<ScenarioId>("supported");
   const scenario = useMemo(() => scenarioById(condition), [condition]);
@@ -610,7 +631,17 @@ export default function App() {
               <div className="live-step">
                 <p className="eyebrow">NEXORA DECISION</p>
                 <h3 className="decision-value">{liveResult.actionDecision.decision}</h3>
-                <p>{liveResult.actionDecision.reasons.map(readable).join(" · ")}</p>
+                <p className="decision-explanation">
+                  {formatDecisionExplanation(
+                    liveResult.actionDecision.decision,
+                    liveResult.actionDecision.reasons,
+                    liveResult.resolution.unresolvedConditions
+                  )}
+                </p>
+                <details className="raw-reasons-toggle">
+                  <summary>View audit reason codes</summary>
+                  <code>{liveResult.actionDecision.reasons.join(" · ")}</code>
+                </details>
                 <div className="decision-stat-row">
                   <span><b>{liveResult.actionDecision.satisfiedRequirements.length}</b> satisfied</span>
                   <span><b>{liveResult.actionDecision.unsatisfiedRequirements.length}</b> unresolved</span>
