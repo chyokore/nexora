@@ -1,47 +1,39 @@
 # Nexora judge-facing web app
 
-The web app is a deliberately narrow interface over the existing Phase 6D Product API. The browser proposes a supplier-payment authorization and sends selected, sanitized evidence assessments to `POST /v1/decisions/evaluate`. It never computes an action decision locally. `ALLOW`, `REVIEW`, or `BLOCK`, the packet fingerprint, and the replay all come from the canonical backend.
+The web app is a submission-grade interface presenting Nexora's deterministic decision engine, live Telegraph discovery inspector, verified settlement evidence gallery, and Decision Replay auditor.
 
-## Local judge demo
+## Public deployments
 
-Use Node.js 18 or newer. In terminal one:
+- **Frontend:** https://nexora-seven-lemon.vercel.app
+- **Product API:** https://nexora-api-3efi.onrender.com
+- **Health Check:** https://nexora-api-3efi.onrender.com/health
+- **Live Discovery:** https://nexora-api-3efi.onrender.com/v1/discovery
 
+## Judge Experience Features
+
+1. **30-Second Positioning:** Clear, immediate explanation that *"Intelligence tells an agent what is happening. Nexora decides what the agent should do next."*
+2. **Architecture Snapshot:** Interactive, responsive pipeline demonstrating the transition from agent proposal to Telegraph intelligence, evidence quality assessment, deterministic policy, bounded decision (`ALLOW` / `REVIEW` / `BLOCK`), and Decision Replay.
+3. **The Contradiction Case Spotlight:** Prominently demonstrates the finding from live Phase 5D audit: TxLens miner reported `status: not_found` with `100% confidence`, but Base Sepolia reality proved the transaction existed. Nexora classified the evidence as `CONTRADICTED` and routed the action to safe `REVIEW`. Demonstrates that high confidence is not verified truth.
+4. **Verified Live Evidence Gallery:** Displays the 3 proven live Telegraph purchases with Base Sepolia settlement transaction hashes, blocks, and costs (0.01 USDC each).
+5. **Live Telegraph Discovery Inspector:** Real-time query against the free Telegraph registry node, displaying total registered miners and neutral winning selections across `FRAUD_DETECTION`, `URL_SCAN`, `ONCHAIN_TX_LOOKUP`, `FACT_CHECK`, and `NEWS_SEARCH` with zero paid inference.
+6. **Decision Evaluator & 4 Scenarios:** Interactive form supporting 4 provenance-badged scenarios (`SUPPORTED`, `FRAUD COVERAGE GAP`, `CONTRADICTED ONCHAIN`, and `VERIFIED ADVERSE`).
+7. **Decision Replay:** Full audit view with SHA-256 fingerprint, one-click copy, recorded vs recomputed decision comparison, 8-event timeline, and collapsible raw Decision Packet JSON.
+
+## Safety Boundary
+
+The evaluator uses sanitized fixtures to demonstrate policy and replay without initiating paid miner calls or exposing wallet credentials. Live discovery uses free registry queries only. The browser contains no wallet connection, private keys, transaction execution, or hidden decision fallbacks.
+
+## Local Development
+
+Terminal 1 (Backend API):
 ```powershell
 cd scripts/telegraph-smoke
-npm install
 npm run start:api
 ```
 
-In terminal two:
-
+Terminal 2 (Frontend):
 ```powershell
 cd web
-npm install
 npm run dev
 ```
-
-Open `http://127.0.0.1:5173/`. Vite proxies `/api` to `http://127.0.0.1:3000`. To use a separately hosted API, copy `.env.example` to an ignored `.env.local` and set `VITE_NEXORA_API_URL` to its public base URL. Only `VITE_` variables are exposed to the browser; never put secrets in them.
-
-## Judge flow
-
-1. Review or edit the proposed supplier payment.
-2. Choose one of four clearly labeled fixture-backed evidence conditions.
-3. Evaluate and observe the Product API's prominent decision.
-4. Compare provider confidence with Nexora's evidence quality and coverage.
-5. Open Decision Replay to inspect validation, packet fingerprint, recorded/recomputed decision, and the ordered timeline.
-
-The four conditions deterministically demonstrate `ALLOW`, coverage-gap `REVIEW`, contradicted-evidence `REVIEW`, and verified-adverse `BLOCK`.
-
-Fixture provenance is always visible: supported evidence uses a sanitized boundary fixture, coverage-gap and onchain contradiction cases are live-derived sanitized fixtures, and the adverse case is an explicitly synthetic policy test. None is presented as a live request.
-
-## Safety boundary
-
-The app uses sanitized fixtures only. It does not call Telegraph or miners, negotiate x402, sign, pay, settle, fund a wallet, write onchain, persist user data, or execute the proposed payment. API failures are displayed directly; the browser has no hidden decision fallback. The replay correctly reports post-decision outcome as `NOT_RECORDED`.
-
-## Verification
-
-Run `npm test`, `npm run type-check`, and `npm run build` in `web`. Run `npm test`, `npm run build`, and `npm run dry-run` in `scripts/telegraph-smoke` to verify the canonical backend and offline boundary.
-
-## Deployment sequence (future phase)
-
-No deployment occurs in Phase 6E. A later verified phase can deploy the static Vite frontend to Vercel, deploy the Node Product API to Render, configure `VITE_NEXORA_API_URL` at frontend build time, restrict backend CORS to the final frontend origin, and then repeat all four browser journeys against those public endpoints. Live Telegraph acquisition should be integrated only after deployment health, observability, budget controls, and secret isolation are independently verified.
+Open `http://127.0.0.1:5173/`.

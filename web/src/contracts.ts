@@ -49,3 +49,28 @@ export interface EvaluationResponse {
   decisionPacket: { version: 1; decisionId: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
   decisionReplay: DecisionReplay;
 }
+
+export interface DiscoveryWinner {
+  id: string;
+  name: string;
+  rank: number;
+  score: number;
+  method: string;
+  endpoint: string;
+  schemaFamily: string;
+  advertisedPriceMicroUsdc: number;
+}
+
+export interface DiscoveryIntentSummary {
+  eligibleCount: number;
+  winner: DiscoveryWinner | null;
+}
+
+export interface DiscoveryResponse {
+  status: string;
+  service: string;
+  discoveryType: string;
+  timestamp: string;
+  totalRegistrations: number;
+  discovery: Record<string, DiscoveryIntentSummary>;
+}

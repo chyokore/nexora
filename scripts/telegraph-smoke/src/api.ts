@@ -2,12 +2,14 @@ import { createHash, randomUUID } from "node:crypto";
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { createDecisionPacket, type DecisionPacket } from "./decision-packet.js";
 import { canonicalSerialize, replayDecisionPacket, sanitizeReplayValue, validateEvidenceAssessment, validateProposedAction } from "./decision-replay.js";
+import { eligibleSelections } from "./selection.js";
+import { DISCOVERY_INTENTS, type DiscoveryIntent, type Miner } from "./types.js";
 import type { ProposedAction } from "./action-policy.js";
 import type { EvidenceAssessment } from "./types.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
-const routes = new Set(["/health", "/v1/decisions/evaluate", "/v1/replays/verify"]);
+const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify"]);
 const LOCAL_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
 
 export interface ApiServerOptions { allowedOrigins?: readonly string[]; logRequests?: boolean }
@@ -76,14 +78,59 @@ function decisionIdFor(input: { proposedAction: ProposedAction; evidenceAssessme
   return `decision:${digest}`;
 }
 
+export async function fetchDiscoverySummary(nodeUrl: string, fetchFn: typeof fetch = fetch): Promise<unknown> {
+  const registryUrl = new URL("/miner-dispatcher/integrations", nodeUrl);
+  const res = await fetchFn(registryUrl, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(5000) });
+  if (!res.ok) throw new Error(`Free registry request failed with HTTP ${res.status}`);
+  const registry = (await res.json()) as Miner[];
+  if (!Array.isArray(registry)) throw new Error("Malformed registry result: expected an array");
+  const discovery = Object.fromEntries(
+    DISCOVERY_INTENTS.map((intent) => {
+      const eligible = eligibleSelections(registry, intent);
+      const top = eligible[0];
+      const winner = top
+        ? {
+            id: top.miner.id,
+            name: top.miner.name,
+            rank: top.score.rank,
+            score: top.score.score,
+            method: top.endpoint.method,
+            endpoint: top.endpoint.path,
+            schemaFamily: top.schemaFamily,
+            advertisedPriceMicroUsdc: top.miner.min_price_usdc,
+          }
+        : null;
+      return [intent, { eligibleCount: eligible.length, winner }];
+    })
+  );
+  return {
+    status: "ok",
+    service: "nexora-api",
+    discoveryType: "FREE_REGISTRY_INSPECTION",
+    timestamp: new Date().toISOString(),
+    totalRegistrations: registry.length,
+    discovery,
+  };
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): Promise<void> {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
   if (!routes.has(path)) { sendError(response, 404, "NOT_FOUND", "Route not found"); return; }
   if (!applyCors(request, response, allowedOrigins)) return;
   if (request.method === "OPTIONS") { response.writeHead(204, { "cache-control": "no-store" }); response.end(); return; }
-  const requiredMethod = path === "/health" ? "GET" : "POST";
+  const requiredMethod = (path === "/health" || path === "/v1/discovery") ? "GET" : "POST";
   if (request.method !== requiredMethod) { response.setHeader("allow", requiredMethod); sendError(response, 405, "METHOD_NOT_ALLOWED", `Use ${requiredMethod} for this route`); return; }
   if (path === "/health") { sendJson(response, 200, { status: "ok", service: "nexora-api", version: API_VERSION }); return; }
+  if (path === "/v1/discovery") {
+    const nodeUrl = process.env.TELEGRAPH_NODE_URL ?? "http://13.237.89.59:7044";
+    try {
+      const summary = await fetchDiscoverySummary(nodeUrl);
+      sendJson(response, 200, summary);
+    } catch {
+      sendError(response, 503, "DISCOVERY_UNAVAILABLE", "Live discovery temporarily unavailable", ["Telegraph registry node is unreachable or returned an error"]);
+    }
+    return;
+  }
   const body = await readJson(request);
   if (path === "/v1/decisions/evaluate") {
     const input = evaluationInput(body);

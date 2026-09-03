@@ -3,7 +3,7 @@ import { after, before, test } from "node:test";
 import { readFile } from "node:fs/promises";
 import type { AddressInfo } from "node:net";
 import type { Server } from "node:http";
-import { createApiServer, resolveAllowedOrigins, resolvePort, startApiServer } from "../src/api.js";
+import { createApiServer, fetchDiscoverySummary, resolveAllowedOrigins, resolvePort, startApiServer } from "../src/api.js";
 import { createDecisionPacket } from "../src/decision-packet.js";
 import { contradictedOnchain, insufficientFraud, proposedSupplierPayment, strongFraudWithoutConfidence, syntheticVerifiedFraudBlock, usableUrl } from "./fixtures/action-policy-fixtures.js";
 
@@ -44,3 +44,51 @@ test("deterministic evaluation request produces byte-identical response", async 
 test("PORT parser honors valid values and rejects coercion", () => { assert.equal(resolvePort("8080"), 8080); assert.equal(resolvePort("0"), 0); assert.equal(resolvePort(undefined), 3000); assert.throws(() => resolvePort("1.5")); assert.throws(() => resolvePort("70000")); });
 test("startApiServer starts and closes on an ephemeral port without credentials", async () => { const previous = process.env.TELEGRAPH_EVM_PRIVATE_KEY; delete process.env.TELEGRAPH_EVM_PRIVATE_KEY; const temporary = await startApiServer(0); assert.ok((temporary.address() as AddressInfo).port > 0); await new Promise<void>((resolve, reject) => temporary.close((error) => error ? reject(error) : resolve())); if (previous !== undefined) process.env.TELEGRAPH_EVM_PRIVATE_KEY = previous; });
 test("API dependency chain reuses core and imports no live/payment modules", async () => { const files = ["api.js", "decision-packet.js", "decision-replay.js", "action-policy.js"]; const source = (await Promise.all(files.map((file) => readFile(new URL(`../src/${file}`, import.meta.url), "utf8")))).join("\n"); assert.match(source, /createDecisionPacket/); assert.match(source, /replayDecisionPacket/); assert.match(source, /evaluateRecordedPolicy/); assert.doesNotMatch(source, /from ["'].+(payment-adapter|transport|registry)|wrapFetchWithPayment|privateKeyToAccount|TELEGRAPH_EVM_PRIVATE_KEY/); });
+
+test("fetchDiscoverySummary formats neutral discovery and handles mock registry", async () => {
+  const mockRegistry = [
+    {
+      id: "miner-1",
+      name: "Mock Fraud Miner",
+      activation_status: "active",
+      min_price_usdc: 10000,
+      supported_intents: ["FRAUD_DETECTION"],
+      endpoints: [{ method: "GET", path: "/assess", description: "FRAUD_DETECTION assessment" }],
+      input_schema: { properties: { query: { type: "string" } }, required: ["query"] },
+      output_schema: { properties: { verdict: { type: "string" } } },
+      scores: [{ intent_id: "FRAUD_DETECTION", rank: 1, score: 0.99 }],
+    },
+  ];
+  const mockFetch: typeof fetch = async () => new Response(JSON.stringify(mockRegistry), { status: 200, headers: { "content-type": "application/json" } });
+  const result = (await fetchDiscoverySummary("http://mock-node:7044", mockFetch)) as any;
+  assert.equal(result.status, "ok");
+  assert.equal(result.discoveryType, "FREE_REGISTRY_INSPECTION");
+  assert.equal(result.totalRegistrations, 1);
+  assert.equal(result.discovery.FRAUD_DETECTION.eligibleCount, 1);
+  assert.equal(result.discovery.FRAUD_DETECTION.winner.name, "Mock Fraud Miner");
+});
+
+test("fetchDiscoverySummary rejects non-array registry", async () => {
+  const mockFetch: typeof fetch = async () => new Response(JSON.stringify({ error: "none" }), { status: 200, headers: { "content-type": "application/json" } });
+  await assert.rejects(async () => fetchDiscoverySummary("http://mock-node:7044", mockFetch), /Malformed registry/);
+});
+
+test("GET /v1/discovery returns 200 or 503 structured error without throwing unhandled exceptions", async () => {
+  const response = await fetch(`${baseUrl}/v1/discovery`);
+  assert.ok(response.status === 200 || response.status === 503);
+  const body = (await response.json()) as any;
+  if (response.status === 200) {
+    assert.equal(body.status, "ok");
+    assert.equal(body.discoveryType, "FREE_REGISTRY_INSPECTION");
+    assert.ok(body.discovery.FRAUD_DETECTION !== undefined);
+  } else {
+    assert.equal(body.error.code, "DISCOVERY_UNAVAILABLE");
+    assert.equal(body.error.message, "Live discovery temporarily unavailable");
+  }
+});
+
+test("POST /v1/discovery returns 405 Method Not Allowed", async () => {
+  const response = await fetch(`${baseUrl}/v1/discovery`, { method: "POST" });
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get("allow"), "GET");
+});

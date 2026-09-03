@@ -1,4 +1,4 @@
-import type { EvaluationResponse, EvidenceAssessment, ProposedAction } from "./contracts";
+import type { DiscoveryResponse, EvaluationResponse, EvidenceAssessment, ProposedAction } from "./contracts";
 
 const apiBase = (import.meta.env.VITE_NEXORA_API_URL as string | undefined)?.replace(/\/$/, "") ?? "/api";
 
@@ -8,4 +8,12 @@ export async function evaluateDecision(proposedAction: ProposedAction, evidenceA
   if (!response.ok) throw new Error(body && "error" in body ? body.error?.message ?? `API request failed (${response.status})` : `API request failed (${response.status})`);
   if (!body || !("decisionPacket" in body) || !("decisionReplay" in body) || !body.decisionPacket.actionDecision?.decision || !Array.isArray(body.decisionPacket.evidenceAssessments) || !body.decisionReplay.validation || typeof body.decisionReplay.validation.matches !== "boolean" || !Array.isArray(body.decisionReplay.timeline) || typeof body.decisionReplay.fingerprint !== "string") throw new Error("The Product API returned a malformed response");
   return body;
+}
+
+export async function fetchDiscovery(): Promise<DiscoveryResponse> {
+  const response = await fetch(`${apiBase}/v1/discovery`);
+  const body = await response.json().catch(() => null) as DiscoveryResponse | { error?: { message?: string } } | null;
+  if (!response.ok) throw new Error(body && "error" in body && body.error?.message ? body.error.message : `Discovery request failed (${response.status})`);
+  if (!body || !("totalRegistrations" in body) || typeof body.totalRegistrations !== "number" || !("discovery" in body)) throw new Error("The Discovery API returned a malformed response");
+  return body as DiscoveryResponse;
 }
