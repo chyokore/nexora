@@ -281,4 +281,44 @@ describe("judge-facing experience", () => {
     expect(screen.getAllByText("Provider Confidence").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Nexora Quality").length).toBeGreaterThan(0);
   });
+
+  it("renders sample decision questions section", () => {
+    mockApi("ALLOW");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "WHAT CAN NEXORA HELP DECIDE?", level: 2 })).toBeInTheDocument();
+    expect(screen.getByText('"Should this supplier payment be authorized?"')).toBeInTheDocument();
+    expect(screen.getByText('"Is the available fraud evidence strong enough to proceed?"')).toBeInTheDocument();
+    expect(screen.getByText('"Does the supplier destination meet the evidence requirements for this action?"')).toBeInTheDocument();
+    expect(screen.getByText('"Why did Nexora hold this action for review?"')).toBeInTheDocument();
+  });
+
+  it("renders why Nexora is different section with three principles", () => {
+    mockApi("ALLOW");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "WHY NEXORA IS DIFFERENT", level: 2 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "INTELLIGENCE IS NOT A DECISION", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "EVIDENCE KEEPS ITS OWN QUALITY", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "THE AGENT MUST OBEY THE RESULT", level: 3 })).toBeInTheDocument();
+  });
+
+  it("renders FAQ section with accessible questions and review safety banner", () => {
+    mockApi("ALLOW");
+    render(<App />);
+    expect(screen.getByRole("heading", { name: "Frequently Asked Questions", level: 2 })).toBeInTheDocument();
+    expect(screen.getByText("REVIEW IS A SAFETY DECISION")).toBeInTheDocument();
+    expect(screen.getByText("What does Nexora do?")).toBeInTheDocument();
+    expect(screen.getByText("How does Telegraph fit into Nexora?")).toBeInTheDocument();
+    expect(screen.getByText("Why can Nexora return REVIEW after paying for intelligence?")).toBeInTheDocument();
+    expect(screen.getByText("Does Nexora move money?")).toBeInTheDocument();
+    expect(screen.getByText("Can I see why Nexora made a decision?")).toBeInTheDocument();
+    expect(screen.getByText("What happens when miners disagree or evidence is incomplete?")).toBeInTheDocument();
+  });
+
+  it("renders Decision Replay trail explanation", async () => {
+    mockApi("ALLOW");
+    render(<App />);
+    await evaluate();
+    expect(screen.getAllByText("EVERY DECISION LEAVES A TRAIL").length).toBeGreaterThan(0);
+  });
 });
+

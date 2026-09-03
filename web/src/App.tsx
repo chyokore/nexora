@@ -169,9 +169,10 @@ export default function App() {
         </a>
         <nav className="top-nav" aria-label="Quick links">
           <a href="#architecture">Architecture</a>
-          <a href="#contradiction">Contradiction Case</a>
-          <a href="#live-evidence">Live Evidence</a>
           <a href="#live-decision">Live Decision</a>
+          <a href="#sample-decisions">What We Decide</a>
+          <a href="#why-nexora">Why Nexora</a>
+          <a href="#faq">FAQ</a>
           <a href="#evaluate" className="nav-cta">Evaluate Action</a>
         </nav>
         <span className="system-state">
@@ -703,6 +704,10 @@ export default function App() {
 
             {/* Step 8: Decision Replay */}
             <div className="live-step">
+              <div className="replay-trail-callout">
+                <strong>EVERY DECISION LEAVES A TRAIL</strong>
+                <p>Decision Replay reconstructs what the agent proposed, what intelligence Nexora requested, what evidence returned, how that evidence was judged, and why the agent ultimately proceeded or stopped.</p>
+              </div>
               <button
                 className="replay-trigger"
                 type="button"
@@ -754,6 +759,132 @@ export default function App() {
             </div>
           </div>
         )}
+      </section>
+
+      {/* What Can Nexora Help Decide? Section */}
+      <section className="sample-decisions-section" id="sample-decisions">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">QUESTIONS NEXORA HELPS ANSWER</p>
+            <h2>WHAT CAN NEXORA HELP DECIDE?</h2>
+          </div>
+          <p>
+            Nexora sits between an agent's proposed action and execution. It gathers the intelligence the action requires, checks whether that evidence is reliable enough, then tells the agent whether to proceed, stop, or wait for review.
+          </p>
+        </div>
+        <div className="sample-questions-grid">
+          <div className="sample-question-card">
+            <span className="sample-tag">EXAMPLE DECISION 01</span>
+            <p className="sample-question">"Should this supplier payment be authorized?"</p>
+            <span className="sample-context">Validates risk screening, supplier URL safety, and optional on-chain transaction references before authorizing action.</span>
+          </div>
+          <div className="sample-question-card">
+            <span className="sample-tag">EXAMPLE DECISION 02</span>
+            <p className="sample-question">"Is the available fraud evidence strong enough to proceed?"</p>
+            <span className="sample-context">Checks that the fraud miner returned a qualified clear finding at or above the minimum required quality.</span>
+          </div>
+          <div className="sample-question-card">
+            <span className="sample-tag">EXAMPLE DECISION 03</span>
+            <p className="sample-question">"Does the supplier destination meet the evidence requirements for this action?"</p>
+            <span className="sample-context">Ensures point-in-time URL scan evidence satisfies action safety policy without relying on unverified assumptions.</span>
+          </div>
+          <div className="sample-question-card">
+            <span className="sample-tag">EXAMPLE DECISION 04</span>
+            <p className="sample-question">"Why did Nexora hold this action for review?"</p>
+            <span className="sample-context">Pinpoints missing evidence items, quality gaps, or factual contradictions directly through deterministic resolution.</span>
+          </div>
+        </div>
+      </section>
+
+      {/* Why Nexora Is Different Section */}
+      <section className="why-different-section" id="why-nexora">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">THREE CORE PRINCIPLES</p>
+            <h2>WHY NEXORA IS DIFFERENT</h2>
+          </div>
+          <p>Nexora separates raw intelligence acquisition from bounded policy evaluation.</p>
+        </div>
+        <div className="why-grid">
+          <div className="why-card">
+            <span className="why-num">01</span>
+            <h3>INTELLIGENCE IS NOT A DECISION</h3>
+            <p>
+              A miner can return an answer with high confidence and the evidence can still be incomplete, contradicted, or unsuitable for the action.
+            </p>
+          </div>
+          <div className="why-card">
+            <span className="why-num">02</span>
+            <h3>EVIDENCE KEEPS ITS OWN QUALITY</h3>
+            <p>
+              Nexora does not average unrelated confidence scores into one artificial trust number. Each required piece of evidence is evaluated on its own.
+            </p>
+          </div>
+          <div className="why-card">
+            <span className="why-num">03</span>
+            <h3>THE AGENT MUST OBEY THE RESULT</h3>
+            <p>
+              ALLOW lets the reference agent proceed. REVIEW holds the action. BLOCK rejects it. Every decision can be inspected through Decision Replay.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ Section */}
+      <section className="faq-section" id="faq">
+        <div className="section-head">
+          <div>
+            <p className="eyebrow">CLEAR ANSWERS</p>
+            <h2>Frequently Asked Questions</h2>
+          </div>
+          <p>Everything you need to know about Nexora's decision control layer.</p>
+        </div>
+
+        <div className="faq-safety-banner">
+          <span className="faq-safety-tag">REVIEW IS A SAFETY DECISION</span>
+          <p>
+            Nexora does not force a yes or no when the evidence cannot support one. REVIEW means the agent was stopped before uncertainty became action.
+          </p>
+        </div>
+
+        <div className="faq-accordion">
+          <details className="faq-item">
+            <summary className="faq-question">What does Nexora do?</summary>
+            <div className="faq-answer">
+              Nexora checks whether an autonomous agent has enough reliable evidence to proceed with an action. It turns intelligence into a bounded ALLOW, REVIEW, or BLOCK decision.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">How does Telegraph fit into Nexora?</summary>
+            <div className="faq-answer">
+              Telegraph provides the live intelligence. Nexora discovers suitable miners, acquires the evidence the action requires, evaluates its quality, and decides what the agent should do next.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Why can Nexora return REVIEW after paying for intelligence?</summary>
+            <div className="faq-answer">
+              Because paying for intelligence does not make the evidence automatically reliable. If required information is missing, weak, contradictory, or below the action's minimum quality, Nexora holds the action for review.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Does Nexora move money?</summary>
+            <div className="faq-answer">
+              No. Nexora controls authorization, not funds. In the reference workflow, the agent changes state only after Nexora returns its decision.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">Can I see why Nexora made a decision?</summary>
+            <div className="faq-answer">
+              Yes. Decision Replay shows the proposed action, required evidence, miners used, evidence quality, policy result, final decision, and the path that led to it.
+            </div>
+          </details>
+          <details className="faq-item">
+            <summary className="faq-question">What happens when miners disagree or evidence is incomplete?</summary>
+            <div className="faq-answer">
+              Nexora preserves the disagreement or uncertainty instead of hiding it inside a combined score. The action can be held for review when the required evidence is not strong enough.
+            </div>
+          </details>
+        </div>
       </section>
 
       {/* Decision Evaluator Workspace */}
@@ -924,6 +1055,10 @@ export default function App() {
             </div>
 
             {/* Decision Replay Section */}
+            <div className="replay-trail-callout">
+              <strong>EVERY DECISION LEAVES A TRAIL</strong>
+              <p>Decision Replay reconstructs what the agent proposed, what intelligence Nexora requested, what evidence returned, how that evidence was judged, and why the agent ultimately proceeded or stopped.</p>
+            </div>
             <button
               className="replay-trigger"
               type="button"

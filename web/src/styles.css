@@ -1658,5 +1658,213 @@ footer {
     flex-direction: column;
     gap: 2px;
   }
+
+  .sample-decisions-section, .why-different-section, .faq-section {
+    padding: 0 16px;
+  }
+  .sample-questions-grid, .why-grid {
+    grid-template-columns: 1fr;
+  }
+  .faq-question {
+    font-size: 0.88rem;
+  }
+  .faq-answer {
+    font-size: 0.82rem;
+  }
 }
+
+/* ──────────────────────────────────────────────
+   Product Clarity & Differentiation Sections
+────────────────────────────────────────────── */
+.sample-decisions-section, .why-different-section, .faq-section {
+  max-width: 1280px;
+  margin: 0 auto 64px;
+  padding: 0 28px;
+}
+
+/* Sample Decisions Grid */
+.sample-questions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(270px, 1fr));
+  gap: 16px;
+}
+
+.sample-question-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.sample-tag {
+  font: 700 0.62rem ui-monospace, monospace;
+  color: var(--mint);
+  letter-spacing: 0.1em;
+}
+
+.sample-question {
+  margin: 0;
+  font-size: 1.02rem;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.4;
+  letter-spacing: -0.01em;
+}
+
+.sample-context {
+  font-size: 0.8rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-top: auto;
+}
+
+/* Why Nexora Is Different Grid */
+.why-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.why-card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--mint);
+  border-radius: 4px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.why-num {
+  font: 700 0.72rem ui-monospace, monospace;
+  color: var(--mint);
+  letter-spacing: 0.12em;
+}
+
+.why-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+
+.why-card p {
+  margin: 0;
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+/* FAQ Section */
+.faq-safety-banner {
+  background: var(--amber-dim);
+  border: 1px solid var(--amber);
+  border-radius: 4px;
+  padding: 18px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.faq-safety-tag {
+  font: 700 0.68rem ui-monospace, monospace;
+  color: var(--amber);
+  letter-spacing: 0.12em;
+}
+
+.faq-safety-banner p {
+  margin: 0;
+  font-size: 0.88rem;
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.faq-accordion {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.faq-item {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 16px 20px;
+  transition: border-color 0.15s;
+}
+
+.faq-item[open] {
+  border-color: var(--mint);
+  background: var(--panel-2);
+}
+
+.faq-question {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.faq-question::-webkit-details-marker {
+  display: none;
+}
+
+.faq-question::after {
+  content: "+";
+  font-family: ui-monospace, monospace;
+  font-size: 1.1rem;
+  color: var(--mint);
+  margin-left: 12px;
+  transition: transform 0.15s;
+}
+
+.faq-item[open] .faq-question::after {
+  content: "−";
+}
+
+.faq-answer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line);
+  font-size: 0.86rem;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+/* Replay Trail Callout */
+.replay-trail-callout {
+  margin-bottom: 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 14px 18px;
+}
+
+.replay-trail-callout strong {
+  color: var(--mint);
+  font: 700 0.68rem ui-monospace, monospace;
+  letter-spacing: 0.12em;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.replay-trail-callout p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 
