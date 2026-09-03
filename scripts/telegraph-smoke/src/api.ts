@@ -7,7 +7,7 @@ import { DISCOVERY_INTENTS, type DiscoveryIntent, type Miner } from "./types.js"
 import type { ProposedAction } from "./action-policy.js";
 import type { EvidenceAssessment } from "./types.js";
 import { LiveDecisionGuard } from "./live-guard.js";
-import { runReferenceAgent, requireExecutionEnvironment, type ReferenceAgentRunResult } from "./reference-agent.js";
+import { runReferenceAgent, requireExecutionEnvironment, isSignerConfigured, type ReferenceAgentRunResult } from "./reference-agent.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
@@ -137,7 +137,18 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
   if (request.method === "OPTIONS") { response.writeHead(204, { "cache-control": "no-store" }); response.end(); return; }
   const requiredMethod = (path === "/health" || path === "/v1/discovery") ? "GET" : "POST";
   if (request.method !== requiredMethod) { response.setHeader("allow", requiredMethod); sendError(response, 405, "METHOD_NOT_ALLOWED", `Use ${requiredMethod} for this route`); return; }
-  if (path === "/health") { sendJson(response, 200, { status: "ok", service: "nexora-api", version: API_VERSION }); return; }
+  if (path === "/health") {
+    sendJson(response, 200, {
+      status: "ok",
+      service: "nexora-api",
+      version: API_VERSION,
+      liveDecision: {
+        enabled: liveGuard.isEnabled(),
+        signerConfigured: isSignerConfigured(process.env),
+      },
+    });
+    return;
+  }
   if (path === "/v1/discovery") {
     const nodeUrl = process.env.TELEGRAPH_NODE_URL ?? "http://13.237.89.59:7044";
     try {

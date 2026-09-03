@@ -14,6 +14,11 @@ import type { ProposedAction, ActionDecision } from "./action-policy.js";
 // importing payment-adapter directly (which carries private-key utilities).
 export { requireExecutionEnvironment, type ExecutionEnvironment };
 
+export function isSignerConfigured(env: Record<string, string | undefined>): boolean {
+  const key = env.TELEGRAPH_EVM_PRIVATE_KEY?.trim().replace(/^["']|["']$/g, "");
+  return Boolean(key && /^0x[a-fA-F0-9]{64}$/.test(key));
+}
+
 export type AgentActionState = "AUTHORIZED" | "HELD_FOR_REVIEW" | "REJECTED";
 
 export type IntelligenceOutcome =

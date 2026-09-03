@@ -15,7 +15,17 @@ const request = (path: string, body: unknown, init: RequestInit = {}) => fetch(`
 const evaluate = (evidenceAssessments: unknown[], proposedAction = proposedSupplierPayment) => request("/v1/decisions/evaluate", { proposedAction, evidenceAssessments });
 const json = async (response: Response): Promise<Record<string, any>> => response.json() as Promise<Record<string, any>>;
 
-test("GET /health crosses the HTTP boundary", async () => { const response = await fetch(`${baseUrl}/health`); assert.equal(response.status, 200); assert.match(response.headers.get("content-type") ?? "", /^application\/json/); assert.deepEqual(await response.json(), { status: "ok", service: "nexora-api", version: "1" }); });
+test("GET /health crosses the HTTP boundary and returns liveDecision status", async () => {
+  const response = await fetch(`${baseUrl}/health`);
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("content-type") ?? "", /^application\/json/);
+  const body = await response.json();
+  assert.equal(body.status, "ok");
+  assert.equal(body.service, "nexora-api");
+  assert.equal(body.version, "1");
+  assert.ok(typeof body.liveDecision?.enabled === "boolean");
+  assert.ok(typeof body.liveDecision?.signerConfigured === "boolean");
+});
 test("ALLOW evaluation returns packet and verified replay", async () => { const response = await evaluate([strongFraudWithoutConfidence, usableUrl]); const body = await json(response); assert.equal(response.status, 200); assert.equal(body.decisionPacket.actionDecision.decision, "ALLOW"); assert.equal(body.decisionReplay.validation.status, "VERIFIED"); assert.equal(body.decisionReplay.recomputedDecision.decision, "ALLOW"); });
 test("fraud out-of-coverage evaluation returns REVIEW and confidence zero", async () => { const body = await json(await evaluate([insufficientFraud, usableUrl])); assert.equal(body.decisionPacket.actionDecision.decision, "REVIEW"); assert.equal(body.decisionReplay.validation.status, "VERIFIED"); assert.equal(body.decisionReplay.evidence.find((item: any) => item.intent === "FRAUD_DETECTION").providerConfidence, 0); });
 test("contradicted onchain evaluation returns REVIEW with confidence one", async () => { const action = { ...proposedSupplierPayment, subject: { ...proposedSupplierPayment.subject, transactionHash: "0xsanitized-transaction-reference" } }; const body = await json(await evaluate([strongFraudWithoutConfidence, usableUrl, contradictedOnchain], action)); const evidence = body.decisionReplay.evidence.find((item: any) => item.intent === "ONCHAIN_TX_LOOKUP"); assert.equal(body.decisionPacket.actionDecision.decision, "REVIEW"); assert.equal(body.decisionReplay.validation.status, "VERIFIED"); assert.equal(evidence.providerConfidence, 1); assert.equal(evidence.verification, "CONTRADICTED"); assert.equal(evidence.quality, "CONTRADICTED"); });

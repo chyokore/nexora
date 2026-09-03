@@ -10,11 +10,13 @@ export interface ExecutionEnvironment { privateKey: `0x${string}`; network: "eip
 export type PaymentFetchFactory = (privateKey: `0x${string}`, network: "eip155:84532", baseFetch: FetchLike) => Promise<FetchLike>;
 
 export function requireExecutionEnvironment(env: NodeJS.ProcessEnv, approvedAsset?: string): ExecutionEnvironment {
-  const privateKey = env.TELEGRAPH_EVM_PRIVATE_KEY;
+  const privateKey = env.TELEGRAPH_EVM_PRIVATE_KEY?.trim().replace(/^["']|["']$/g, "");
   if (!/^0x[a-fA-F0-9]{64}$/.test(privateKey ?? "")) throw new Error("A valid TELEGRAPH_EVM_PRIVATE_KEY is required");
-  if (env.EVM_NETWORK !== "eip155:84532") throw new Error("Payment execution requires EVM_NETWORK=eip155:84532");
-  if (!/^0x[a-fA-F0-9]{40}$/.test(approvedAsset ?? "")) throw new Error("A valid explicitly approved asset is required");
-  return { privateKey: privateKey as `0x${string}`, network: "eip155:84532", approvedAsset: approvedAsset as `0x${string}` };
+  const network = (env.EVM_NETWORK ?? "eip155:84532").trim().replace(/^["']|["']$/g, "");
+  if (network !== "eip155:84532") throw new Error("Payment execution requires EVM_NETWORK=eip155:84532");
+  const asset = (approvedAsset ?? env.TELEGRAPH_APPROVED_ASSET ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e").trim().replace(/^["']|["']$/g, "");
+  if (!/^0x[a-fA-F0-9]{40}$/i.test(asset)) throw new Error("A valid explicitly approved asset is required");
+  return { privateKey: privateKey as `0x${string}`, network: "eip155:84532", approvedAsset: asset as `0x${string}` };
 }
 
 export async function officialPaymentFetch(privateKey: `0x${string}`, network: "eip155:84532", baseFetch: FetchLike = fetch): Promise<FetchLike> {
