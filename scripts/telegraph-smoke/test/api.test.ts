@@ -25,6 +25,8 @@ test("GET /health crosses the HTTP boundary and returns liveDecision status", as
   assert.equal(body.version, "1");
   assert.ok(typeof body.liveDecision?.enabled === "boolean");
   assert.ok(typeof body.liveDecision?.signerConfigured === "boolean");
+  assert.ok(["present", "missing"].includes(body.liveDecision?.signerPresence));
+  assert.ok(["valid", "invalid"].includes(body.liveDecision?.signerFormat));
 });
 test("ALLOW evaluation returns packet and verified replay", async () => { const response = await evaluate([strongFraudWithoutConfidence, usableUrl]); const body = await json(response); assert.equal(response.status, 200); assert.equal(body.decisionPacket.actionDecision.decision, "ALLOW"); assert.equal(body.decisionReplay.validation.status, "VERIFIED"); assert.equal(body.decisionReplay.recomputedDecision.decision, "ALLOW"); });
 test("fraud out-of-coverage evaluation returns REVIEW and confidence zero", async () => { const body = await json(await evaluate([insufficientFraud, usableUrl])); assert.equal(body.decisionPacket.actionDecision.decision, "REVIEW"); assert.equal(body.decisionReplay.validation.status, "VERIFIED"); assert.equal(body.decisionReplay.evidence.find((item: any) => item.intent === "FRAUD_DETECTION").providerConfidence, 0); });

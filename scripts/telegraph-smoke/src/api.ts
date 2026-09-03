@@ -7,7 +7,7 @@ import { DISCOVERY_INTENTS, type DiscoveryIntent, type Miner } from "./types.js"
 import type { ProposedAction } from "./action-policy.js";
 import type { EvidenceAssessment } from "./types.js";
 import { LiveDecisionGuard } from "./live-guard.js";
-import { runReferenceAgent, requireExecutionEnvironment, isSignerConfigured, type ReferenceAgentRunResult } from "./reference-agent.js";
+import { runReferenceAgent, requireExecutionEnvironment, inspectSignerConfig, type ReferenceAgentRunResult } from "./reference-agent.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
@@ -138,13 +138,14 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
   const requiredMethod = (path === "/health" || path === "/v1/discovery") ? "GET" : "POST";
   if (request.method !== requiredMethod) { response.setHeader("allow", requiredMethod); sendError(response, 405, "METHOD_NOT_ALLOWED", `Use ${requiredMethod} for this route`); return; }
   if (path === "/health") {
+    const signerStatus = inspectSignerConfig(process.env);
     sendJson(response, 200, {
       status: "ok",
       service: "nexora-api",
       version: API_VERSION,
       liveDecision: {
         enabled: liveGuard.isEnabled(),
-        signerConfigured: isSignerConfigured(process.env),
+        ...signerStatus,
       },
     });
     return;
