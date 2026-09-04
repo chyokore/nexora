@@ -243,6 +243,30 @@ test("POST /v1/investigations/run route is registered (not 404, not 405 for POST
   assert.notEqual(response.status, 405, "/v1/investigations/run must accept POST");
 });
 
+test("POST /v1/investigations/run accepts onchain-only investigation payload without validation error", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      mode: "INVESTIGATE",
+      question: "Does this transaction exist on Base Sepolia?",
+      sources: [{ type: "ONCHAIN_REFERENCE", value: "0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882" }],
+    }),
+  });
+  assert.notEqual(response.status, 404, "route must exist");
+  assert.notEqual(response.status, 400, "onchain-only payload must not trigger 400 validation error");
+});
+
+test("OPTIONS /v1/investigations/run returns 204 with CORS origin headers", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "OPTIONS",
+    headers: { origin: "http://localhost:5173", "access-control-request-method": "POST" },
+  });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "http://localhost:5173");
+  assert.match(response.headers.get("access-control-allow-methods") ?? "", /POST/);
+});
+
 // x402 challenge parsing tests
 test("parseChallenge: accepts valid base64-encoded JSON challenge", async () => {
   const { parseChallenge } = await import("../src/challenge.js");

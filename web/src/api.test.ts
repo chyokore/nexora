@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { evaluateDecision, fetchDiscovery } from "./api";
+import { apiBase, evaluateDecision, fetchDiscovery, runInvestigation, runLiveDecision } from "./api";
 import { scenarioById } from "./scenarios";
 import type { ProposedAction } from "./contracts";
 
@@ -53,7 +53,7 @@ describe("Product API client", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => response });
     vi.stubGlobal("fetch", fetchMock);
     await evaluateDecision(action, scenarioById("supported").evidence);
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/decisions/evaluate", expect.objectContaining({ method: "POST" }));
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/v1/decisions/evaluate`, expect.objectContaining({ method: "POST" }));
   });
 
   it("surfaces Product API errors without a fallback", async () => {
@@ -77,7 +77,7 @@ describe("Product API client", () => {
     const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => discoveryResponse });
     vi.stubGlobal("fetch", fetchMock);
     const data = await fetchDiscovery();
-    expect(fetchMock).toHaveBeenCalledWith("/api/v1/discovery");
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/v1/discovery`);
     expect(data.totalRegistrations).toBe(129);
     expect(data.discovery.FRAUD_DETECTION.eligibleCount).toBe(6);
   });
@@ -97,5 +97,25 @@ describe("Product API client", () => {
   it("rejects malformed discovery responses", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ status: "ok" }) }));
     await expect(fetchDiscovery()).rejects.toThrow("malformed response");
+  });
+
+  it("posts runInvestigation to correct production endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ runId: "run:123", verdict: "SUPPORTED" }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await runInvestigation({ mode: "INVESTIGATE", question: "Is this URL safe?" });
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/v1/investigations/run`, expect.objectContaining({ method: "POST" }));
+  });
+
+  it("posts runLiveDecision to correct production endpoint", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ runId: "run:123", agentState: "AUTHORIZED", actionDecision: { decision: "ALLOW" } }),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    await runLiveDecision(action);
+    expect(fetchMock).toHaveBeenCalledWith(`${apiBase}/v1/agent/run`, expect.objectContaining({ method: "POST" }));
   });
 });

@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import App from "./App";
+import { apiBase, runInvestigation } from "./api";
 import { scenarioById, type ScenarioId } from "./scenarios";
 
 function apiResult(decision: "ALLOW" | "REVIEW" | "BLOCK", scenario: ScenarioId = "supported") {
@@ -179,6 +180,10 @@ describe("judge-facing experience", () => {
     vi.unstubAllGlobals();
   });
 
+  it("apiBase defaults to production Render API endpoint", () => {
+    expect(apiBase).toBe("https://nexora-api-3efi.onrender.com");
+  });
+
   it("renders the homepage positioning and core message", () => {
     mockApi("ALLOW");
     render(<App />);
@@ -310,6 +315,23 @@ describe("judge-facing experience", () => {
     await evaluate();
     expect(screen.getByText("Live decision unavailable")).toBeVisible();
     expect(screen.queryByRole("heading", { name: /^(ALLOW|REVIEW|BLOCK)$/, level: 2 })).not.toBeInTheDocument();
+  });
+
+  it("surfaces safe distinguishable message on network failure", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes("/v1/discovery")) return { ok: true, json: async () => mockDiscovery };
+        throw new TypeError("Failed to fetch");
+      })
+    );
+    await expect(
+      runInvestigation({
+        mode: "INVESTIGATE",
+        question: "Does this transaction exist on Base Sepolia?",
+        sources: [{ type: "ONCHAIN_REFERENCE", value: "0xcd9a4af2f822034bf8b8437815c17d3f2ae56bbee8d7444b3c12093525da1882" }],
+      })
+    ).rejects.toThrow("Nexora could not reach the decision API. No conclusion was produced.");
   });
 
   it("contains no private-key or wallet UI", () => {
