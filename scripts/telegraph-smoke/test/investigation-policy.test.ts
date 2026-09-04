@@ -21,7 +21,7 @@ function makeReq(intent: string, mandatory = true): PlannedRequirement {
 function makeAssessment(intent: string, quality: string, verification = "UNVERIFIED"): EvidenceAssessment {
   return {
     intent: intent as EvidenceAssessment["intent"],
-    structuralValidity: "VALID",
+    structuralValidity: "MATCH",
     coverage: "SUFFICIENT",
     verification: verification as EvidenceAssessment["verification"],
     quality: quality as EvidenceAssessment["quality"],
