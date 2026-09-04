@@ -3,9 +3,60 @@ import type { Conformance, DomainEvidence, Intent, Selection } from "./types.js"
 function optionalNumber(value: unknown): number | undefined { return typeof value === "number" && Number.isFinite(value) ? value : undefined; }
 function optionalString(value: unknown): string | undefined { return typeof value === "string" ? value : undefined; }
 
+const SENSITIVE_KEY_PATTERN = /authorization|cookie|set-cookie|signature|payment|x-payment|private.?key|secret|token|bearer|password|credential/i;
+
+const MAPPED_KEYS: Record<string, Set<string>> = {
+  FRAUD_DETECTION: new Set(["confidence", "verdict", "label", "reason", "reasoning", "coverage_complete", "data_source", "risk_tier"]),
+  URL_SCAN: new Set(["confidence", "verdict", "label", "risk", "url", "risk_score", "summary", "listings", "host_listings", "feeds_checked", "source", "status_code", "safe", "reachable"]),
+  ONCHAIN_TX_LOOKUP: new Set(["confidence", "tx_hash", "chain", "block_hash", "from", "to", "value_wei", "receipt_status", "method", "status", "block_number", "value_eth", "gas_used", "effective_gas_price", "token_transfers", "events", "source", "provider"]),
+  FACT_CHECK: new Set(["confidence", "verdict", "sources", "sources_checked", "claim", "explanation", "rating"]),
+  NEWS_SEARCH: new Set(["confidence", "verdict", "articles", "news", "sources", "summary"]),
+};
+
+function getValueType(val: unknown): string {
+  if (val === null) return "null";
+  if (Array.isArray(val)) return `array[${val.length}]`;
+  if (typeof val === "object") return "object";
+  return typeof val;
+}
+
+export function extractUnmappedSchema(intent: Intent, record: Record<string, unknown>): Array<{ path: string; type: string }> {
+  const mapped = MAPPED_KEYS[intent] ?? new Set<string>();
+  const result: Array<{ path: string; type: string }> = [];
+  const MAX_ENTRIES = 25;
+
+  for (const key of Object.keys(record)) {
+    if (result.length >= MAX_ENTRIES) break;
+    if (mapped.has(key) || SENSITIVE_KEY_PATTERN.test(key)) continue;
+
+    const val = record[key];
+    const valType = getValueType(val);
+    result.push({ path: key, type: valType });
+
+    if (val !== null && typeof val === "object" && !Array.isArray(val) && result.length < MAX_ENTRIES) {
+      const childObj = val as Record<string, unknown>;
+      for (const childKey of Object.keys(childObj)) {
+        if (result.length >= MAX_ENTRIES) break;
+        if (SENSITIVE_KEY_PATTERN.test(childKey)) continue;
+        result.push({ path: `${key}.${childKey}`, type: getValueType(childObj[childKey]) });
+      }
+    }
+  }
+
+  return result;
+}
+
 export function normalizeEvidence(intent: Intent, selection: Selection, value: unknown, validationStatus: Conformance): DomainEvidence {
   const record = value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-  const base = { sourceMinerId: selection.miner.id, sourceMinerName: selection.miner.name, validationStatus, uncertainty: [] as string[], unavailableFields: [] as string[] };
+  const unmappedSchema = extractUnmappedSchema(intent, record);
+  const base = {
+    sourceMinerId: selection.miner.id,
+    sourceMinerName: selection.miner.name,
+    validationStatus,
+    uncertainty: [] as string[],
+    unavailableFields: [] as string[],
+    ...(unmappedSchema.length > 0 ? { unmappedSchema } : {}),
+  };
   const confidence = optionalNumber(record.confidence);
   if (confidence === undefined) base.unavailableFields.push("confidence");
   const verdict = optionalString(record.verdict);

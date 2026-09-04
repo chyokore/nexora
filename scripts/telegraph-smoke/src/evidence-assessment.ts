@@ -76,6 +76,7 @@ export interface DomainAssessmentContext {
 
 /** Intent adapter: extracts coverage and scoped uncertainty before generic policy runs. */
 export function assessNormalizedEvidence(evidence: DomainEvidence, context: DomainAssessmentContext): EvidenceAssessment {
+  const unmappedFact = evidence.unmappedSchema && evidence.unmappedSchema.length > 0 ? { _unmappedSchema: evidence.unmappedSchema as unknown as EvidenceFactValue } : {};
   if (evidence.intent === "FRAUD_DETECTION") {
     const abstained = evidence.label === "out_of_coverage" || evidence.uncertainty.includes("insufficient_data") || evidence.uncertainty.includes("coverage_incomplete");
     return assessEvidence({
@@ -83,7 +84,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
       coverage: abstained ? "OUT_OF_COVERAGE" : evidence.label === undefined ? "UNKNOWN" : "SUFFICIENT",
       verification: abstained ? "NOT_APPLICABLE" : context.verification,
       ...(context.findings === undefined ? {} : { findings: context.findings }),
-      providerFacts: { ...(evidence.label === undefined ? {} : { label: evidence.label }) },
+      providerFacts: { ...unmappedFact, ...(evidence.label === undefined ? {} : { label: evidence.label }) },
       ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
       missingEvidence: [...(context.missingEvidence ?? []), ...(abstained ? ["supported_fraud_finding"] : [])],
     });
@@ -95,7 +96,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
       coverage: supported ? "SUFFICIENT" : "PARTIAL",
       verification: context.verification,
       ...(context.findings === undefined ? {} : { findings: context.findings }),
-      providerFacts: { ...(evidence.queriedUrl === undefined ? {} : { queriedUrl: evidence.queriedUrl }), ...(evidence.verdict === undefined ? {} : { verdict: evidence.verdict }), ...(evidence.safe === undefined ? {} : { safe: evidence.safe }) },
+      providerFacts: { ...unmappedFact, ...(evidence.queriedUrl === undefined ? {} : { queriedUrl: evidence.queriedUrl }), ...(evidence.verdict === undefined ? {} : { verdict: evidence.verdict }), ...(evidence.safe === undefined ? {} : { safe: evidence.safe }) },
       ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
       ...(context.missingEvidence === undefined ? {} : { missingEvidence: context.missingEvidence }),
       uncertainties: ["point_in_time_scan", "finite_provider_coverage", "no_future_safety_guarantee"],
@@ -107,7 +108,7 @@ export function assessNormalizedEvidence(evidence: DomainEvidence, context: Doma
     coverage: relevantClaim ? "SUFFICIENT" : "UNKNOWN",
     verification: context.verification,
     ...(context.findings === undefined ? {} : { findings: context.findings }),
-    providerFacts: evidence.intent === "ONCHAIN_TX_LOOKUP" ? { ...(evidence.queriedTransactionHash === undefined ? {} : { queriedTransactionHash: evidence.queriedTransactionHash }), ...(evidence.chain === undefined ? {} : { chain: evidence.chain }), ...(evidence.transactionStatus === undefined ? {} : { transactionStatus: evidence.transactionStatus }) } : { ...(evidence.verdict === undefined ? {} : { verdict: evidence.verdict }) },
+    providerFacts: { ...unmappedFact, ...(evidence.intent === "ONCHAIN_TX_LOOKUP" ? { ...(evidence.queriedTransactionHash === undefined ? {} : { queriedTransactionHash: evidence.queriedTransactionHash }), ...(evidence.chain === undefined ? {} : { chain: evidence.chain }), ...(evidence.transactionStatus === undefined ? {} : { transactionStatus: evidence.transactionStatus }) } : { ...(evidence.verdict === undefined ? {} : { verdict: evidence.verdict }) }) },
     ...(context.contradictions === undefined ? {} : { contradictions: context.contradictions }),
     ...(context.missingEvidence === undefined ? {} : { missingEvidence: context.missingEvidence }),
   });

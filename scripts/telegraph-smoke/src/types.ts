@@ -104,7 +104,8 @@ export interface CaptureRecord {
   conformance?: Conformance;
 }
 
-export interface EvidenceBase { sourceMinerId: string; sourceMinerName: string; intent: DiscoveryIntent; validationStatus: Conformance; confidence?: number; uncertainty: string[]; unavailableFields: string[]; }
+export interface UnmappedSchemaEntry { path: string; type: string; }
+export interface EvidenceBase { sourceMinerId: string; sourceMinerName: string; intent: DiscoveryIntent; validationStatus: Conformance; confidence?: number; uncertainty: string[]; unavailableFields: string[]; unmappedSchema?: UnmappedSchemaEntry[]; }
 export interface FraudEvidence extends EvidenceBase { intent: "FRAUD_DETECTION"; label?: string; reason?: string; }
 export interface UrlSafetyEvidence extends EvidenceBase { intent: "URL_SCAN"; queriedUrl?: string; verdict?: string; safe?: boolean; reachable?: boolean; riskScore?: number; threatIndicators?: unknown[]; sources?: unknown; scanStatus?: string | number; summary?: string; }
 export interface OnchainTransactionEvidence extends EvidenceBase { intent: "ONCHAIN_TX_LOOKUP"; queriedTransactionHash?: string; chain?: string; transactionStatus?: string; blockNumber?: number; blockHash?: string; from?: string; to?: string; valueWei?: string; valueNative?: number; receiptStatus?: string; method?: string; gasUsed?: string; effectiveGasPrice?: string; tokenEvents?: unknown[]; source?: unknown; }
