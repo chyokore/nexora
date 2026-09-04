@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { evaluateDecision, fetchDiscovery, runLiveDecision } from "./api";
-import type { DiscoveryResponse, EvaluationResponse, LiveDecisionRunResult, ProposedAction } from "./contracts";
+import { evaluateDecision, fetchDiscovery, runInvestigation, runLiveDecision } from "./api";
+import type { DecisionMode, DiscoveryResponse, EvaluationResponse, InvestigationRunResult, LiveDecisionRunResult, ProposedAction } from "./contracts";
 import { scenarioById, scenarios, type ScenarioId } from "./scenarios";
 
 const readable = (value: string) =>
@@ -61,6 +61,16 @@ export default function App() {
   const [liveError, setLiveError] = useState("");
   const [showLiveReplay, setShowLiveReplay] = useState(false);
 
+  // Investigation State
+  const [activeMode, setActiveMode] = useState<DecisionMode>("INVESTIGATE");
+  const [invQuestion, setInvQuestion] = useState("");
+  const [invUrl, setInvUrl] = useState("");
+  const [invTxHash, setInvTxHash] = useState("");
+  const [invResult, setInvResult] = useState<InvestigationRunResult | null>(null);
+  const [invLoading, setInvLoading] = useState(false);
+  const [invError, setInvError] = useState("");
+  const [showInvReplay, setShowInvReplay] = useState(false);
+
   const liveAction: ProposedAction = {
     id: "live-decision-001",
     type: "SUPPLIER_PAYMENT_AUTHORIZATION",
@@ -94,6 +104,48 @@ export default function App() {
       setLiveError(err instanceof Error ? err.message : "Live decision temporarily unavailable");
     } finally {
       setLiveLoading(false);
+    }
+  }
+
+  async function submitInvestigation() {
+    if (!invQuestion.trim()) return;
+    setInvLoading(true);
+    setInvError("");
+    setInvResult(null);
+    setShowInvReplay(false);
+    try {
+      const sources: Array<{ type: "TEXT" | "URL" | "ONCHAIN_REFERENCE"; value: string }> = [];
+      if (invUrl.trim()) sources.push({ type: "URL", value: invUrl.trim() });
+      if (invTxHash.trim()) sources.push({ type: "ONCHAIN_REFERENCE", value: invTxHash.trim() });
+      const data = await runInvestigation({
+        mode: "INVESTIGATE",
+        question: invQuestion.trim(),
+        ...(sources.length > 0 ? { sources } : {}),
+      });
+      setInvResult(data);
+    } catch (err) {
+      setInvError(err instanceof Error ? err.message : "Investigation temporarily unavailable");
+    } finally {
+      setInvLoading(false);
+    }
+  }
+
+  function loadExample(ex: "url-safety" | "onchain" | "fraud") {
+    setInvResult(null);
+    setInvError("");
+    setShowInvReplay(false);
+    if (ex === "url-safety") {
+      setInvQuestion("Is this supplier URL safe to proceed with?");
+      setInvUrl("https://example.com/");
+      setInvTxHash("");
+    } else if (ex === "onchain") {
+      setInvQuestion("Does this transaction exist on Base Sepolia?");
+      setInvUrl("");
+      setInvTxHash("0xcd9a...");
+    } else {
+      setInvQuestion("Are there fraud or risk indicators associated with this payment request?");
+      setInvUrl("");
+      setInvTxHash("");
     }
   }
 
@@ -169,7 +221,7 @@ export default function App() {
         </a>
         <nav className="top-nav" aria-label="Quick links">
           <a href="#architecture">Architecture</a>
-          <a href="#live-decision">Live Decision</a>
+          <a href="#workspace">Decision Workspace</a>
           <a href="#sample-decisions">What We Decide</a>
           <a href="#why-nexora">Why Nexora</a>
           <a href="#faq">FAQ</a>
@@ -188,9 +240,9 @@ export default function App() {
             Verify Intelligence.<br /><em>Bound Action.</em>
           </h1>
           <p className="lede">
-            <strong>Ask a question. See the evidence behind the decision.</strong>
+            <strong>Bring Nexora a question, claim, link, or onchain reference.</strong>
             <br />
-            <strong>Nexora turns a decision question into explicit evidence requirements, routes those questions through relevant Telegraph miners, evaluates what comes back, and determines whether an autonomous agent has enough reliable evidence to act.</strong>
+            <strong>Nexora determines what must be verified, obtains relevant intelligence through Telegraph, evaluates evidence quality and disagreement, then returns a bounded conclusion with a complete decision trace.</strong>
           </p>
           <div className="value-pillars">
             <div className="pillar">
@@ -210,7 +262,7 @@ export default function App() {
             </div>
           </div>
           <div className="hero-actions">
-            <a href="#live-decision" className="btn-primary">Try Live Decision</a>
+            <a href="#workspace" className="btn-primary">Try Decision Workspace</a>
             <a href="#contradiction" className="btn-secondary">The Contradiction Case</a>
             <a href="#evaluate" className="btn-secondary">Evaluate Action</a>
           </div>
@@ -461,319 +513,634 @@ export default function App() {
         )}
       </section>
 
-      {/* Live Decision Section */}
-      <section className="live-decision-section" id="live-decision">
+      {/* Decision Workspace */}
+      <section className="live-decision-section" id="workspace">
         <div className="section-head">
           <div>
-            <p className="eyebrow">LIVE TELEGRAPH INTELLIGENCE · BASE SEPOLIA</p>
-            <h2>See an agent ask Nexora whether it should proceed.</h2>
+            <p className="eyebrow">DECISION WORKSPACE</p>
+            <h2>Bring Nexora a question, a link, or a proposed action.</h2>
           </div>
           <p>
-            A proposed supplier payment is submitted. Nexora acquires real intelligence from Telegraph miners,
-            evaluates the evidence quality, and returns a deterministic decision — ALLOW, REVIEW, or BLOCK.
+            Nexora determines what must be verified, routes those questions through Telegraph miners,
+            evaluates evidence quality, and returns a bounded conclusion with a complete decision trace.
           </p>
         </div>
 
-        <div className="live-decision-proposal">
-          <p className="eyebrow">AGENT PROPOSAL</p>
-          <div className="proposal-card">
-            <div className="proposal-row"><span>Action</span><strong>{liveAction.type}</strong></div>
-            <div className="proposal-row"><span>Description</span><strong>{liveAction.description}</strong></div>
-            <div className="proposal-row"><span>Supplier Reference</span><code>{liveAction.subject.reference}</code></div>
-            <div className="proposal-row"><span>Supplier URL</span><code>{liveAction.subject.supplierUrl}</code></div>
-            <div className="proposal-row"><span>Risk Class</span><code>{liveAction.riskClass}</code></div>
-          </div>
-        </div>
-
-        <div className="live-decision-trigger">
+        {/* Mode Tabs */}
+        <div className="workspace-mode-tabs" role="tablist" aria-label="Decision mode">
           <button
-            className="btn-live-decision"
+            role="tab"
+            aria-selected={activeMode === "INVESTIGATE"}
+            className={`mode-tab${activeMode === "INVESTIGATE" ? " active" : ""}`}
             type="button"
-            disabled={liveLoading}
-            onClick={submitLiveDecision}
+            onClick={() => { setActiveMode("INVESTIGATE"); setInvResult(null); setInvError(""); }}
           >
-            {liveLoading ? (
-              <><span className="spinner" aria-hidden="true" /> Acquiring intelligence…</>
-            ) : (
-              <>Run Live Decision &rarr;</>
-            )}
+            <span className="mode-tab-label">INVESTIGATE</span>
+            <small>Claims · URLs · Onchain references</small>
           </button>
-          <p className="live-caution">
-            This run makes real Telegraph calls and settles on Base Sepolia.
-            Rate limited to one run per minute. Maximum 0.03 USDC per run.
-          </p>
+          <button
+            role="tab"
+            aria-selected={activeMode === "AUTHORIZE_ACTION"}
+            className={`mode-tab${activeMode === "AUTHORIZE_ACTION" ? " active" : ""}`}
+            type="button"
+            onClick={() => { setActiveMode("AUTHORIZE_ACTION"); setLiveResult(null); setLiveError(""); }}
+          >
+            <span className="mode-tab-label">AUTHORIZE ACTION</span>
+            <small>Autonomous agent payment decisions</small>
+          </button>
         </div>
 
-        {liveError && (
-          <div className="live-error" role="alert">
-            <strong>Live decision unavailable</strong>
-            <span>{liveError}</span>
+        {/* INVESTIGATE MODE */}
+        {activeMode === "INVESTIGATE" && (
+          <div className="investigate-panel">
+            <div className="investigate-inputs">
+              <div className="inv-input-group">
+                <label className="inv-label" htmlFor="inv-question">
+                  Your question
+                </label>
+                <textarea
+                  id="inv-question"
+                  className="inv-textarea"
+                  rows={3}
+                  placeholder="What do you want Nexora to verify? e.g. Is this URL safe? Does this transaction exist?"
+                  value={invQuestion}
+                  onChange={(e) => setInvQuestion(e.target.value)}
+                />
+              </div>
+              <div className="inv-source-grid">
+                <div className="inv-input-group">
+                  <label className="inv-label" htmlFor="inv-url">
+                    URL <small>(optional — triggers URL_SCAN)</small>
+                  </label>
+                  <input
+                    id="inv-url"
+                    type="url"
+                    className="inv-input"
+                    placeholder="https://example.com/supplier"
+                    value={invUrl}
+                    onChange={(e) => setInvUrl(e.target.value)}
+                  />
+                </div>
+                <div className="inv-input-group">
+                  <label className="inv-label" htmlFor="inv-tx">
+                    Onchain reference <small>(optional — triggers ONCHAIN_TX_LOOKUP)</small>
+                  </label>
+                  <input
+                    id="inv-tx"
+                    className="inv-input"
+                    placeholder="0x transaction hash"
+                    value={invTxHash}
+                    onChange={(e) => setInvTxHash(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="example-buttons-row">
+                <span className="example-label">EXAMPLES</span>
+                <button type="button" className="btn-example" onClick={() => loadExample("url-safety")}>URL safety check</button>
+                <button type="button" className="btn-example" onClick={() => loadExample("onchain")}>Onchain verification</button>
+                <button type="button" className="btn-example" onClick={() => loadExample("fraud")}>Fraud risk assessment</button>
+              </div>
+              <button
+                type="button"
+                className="btn-live-decision"
+                disabled={invLoading || !invQuestion.trim()}
+                onClick={submitInvestigation}
+              >
+                {invLoading ? (
+                  <><span className="spinner" aria-hidden="true" /> Acquiring intelligence…</>
+                ) : (
+                  <>Run Investigation &rarr;</>
+                )}
+              </button>
+              <p className="live-caution">
+                This run makes real Telegraph calls and settles on Base Sepolia.
+                Rate limited to one run per minute. Maximum 0.03 USDC per run.
+              </p>
+            </div>
+
+            {invError && (
+              <div className="live-error" role="alert">
+                <strong>Investigation unavailable</strong>
+                <span>{invError}</span>
+              </div>
+            )}
+
+            {invResult && (
+              <div className="live-result">
+
+                {/* Step 1: Question */}
+                <div className="live-step">
+                  <p className="eyebrow">01 · YOUR QUESTION</p>
+                  <h3>WHAT NEXORA WAS ASKED</h3>
+                  <div className="question-display-box">
+                    <p className="main-user-question">&ldquo;{invResult.question}&rdquo;</p>
+                    {invResult.investigationPlan.urlTarget && (
+                      <div className="question-meta-row">
+                        <span>URL: <code>{invResult.investigationPlan.urlTarget}</code></span>
+                      </div>
+                    )}
+                    {invResult.investigationPlan.txHashTarget && (
+                      <div className="question-meta-row">
+                        <span>Transaction: <code>{invResult.investigationPlan.txHashTarget}</code></span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {invResult.investigationPlan.requirements.length > 0 && (
+                  <div className="live-step">
+                    <p className="eyebrow">02 · EVIDENCE QUESTIONS GENERATED</p>
+                    <h3>WHAT NEXORA NEEDS TO VERIFY</h3>
+                    <div className="requirements-grid">
+                      {(invResult.evidenceQuestions.length > 0 ? invResult.evidenceQuestions : invResult.investigationPlan.requirements).map((req: any) => (
+                        <div className="requirement-card" key={req.intent}>
+                          <div className="req-card-head">
+                            <span className="req-intent">{readable(req.intent)}</span>
+                            <span className={`req-mandatory ${req.mandatory ? "mandatory" : "optional"}`}>
+                              {req.mandatory ? "Mandatory" : "Optional"}
+                            </span>
+                          </div>
+                          {req.question && <h4 className="req-question-text">&ldquo;{req.question}&rdquo;</h4>}
+                          {req.whyItMatters && (
+                            <p className="req-why-text">
+                              <strong>Why this matters:</strong> {req.whyItMatters}
+                            </p>
+                          )}
+                          <div className="req-footer-row">
+                            <code className="req-quality">Min quality: {req.minimumQuality}</code>
+                            {req.requirementStatus && (
+                              <span className={`req-status-tag ${req.requirementStatus.toLowerCase()}`}>
+                                {req.requirementStatus}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {invResult.acquiredIntelligence.length > 0 && (
+                  <div className="live-step">
+                    <p className="eyebrow">03 · TELEGRAPH ROUTING &amp; MINER SELECTION</p>
+                    <h3>SELECTIVE MINER ROUTING &amp; ACQUISITION</h3>
+                    <div className="intel-grid">
+                      {invResult.acquiredIntelligence.map((item) => (
+                        <div className="intel-card" key={item.intent}>
+                          <div className="intel-card-head">
+                            <span className="intel-intent">{readable(item.intent)}</span>
+                            <span className={`intel-status ${item.outcome.status}`}>{item.outcome.status.replace(/_/g, " ")}</span>
+                          </div>
+                          {item.minerId !== "NONE" && item.minerId !== "UNKNOWN" && (
+                            <dl className="intel-dl">
+                              <div><dt>Provider</dt><dd>{item.minerName}</dd></div>
+                              <div><dt>Telegraph Rank</dt><dd>#{item.rank}</dd></div>
+                              <div><dt>Endpoint</dt><dd><code>{item.method} {item.endpoint}</code></dd></div>
+                              <div><dt>Advertised Price</dt><dd>{(item.advertisedPriceMicroUsdc / 1_000_000).toFixed(4)} USDC</dd></div>
+                              <div><dt>Call ID</dt><dd><code className="call-id">{item.logicalCallId}</code></dd></div>
+                            </dl>
+                          )}
+                          {item.outcome.status !== "acquired" && (
+                            <p className="intel-reason">{("reason" in item.outcome ? item.outcome.reason : null) ?? "No compatible provider found"}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {invResult.evidenceAssessments.length > 0 && (
+                  <div className="live-step">
+                    <p className="eyebrow">04 · EVIDENCE QUALITY &amp; CONFLICT ASSESSMENT</p>
+                    <h3>What Nexora trusts, questions, or cannot verify</h3>
+                    <div className="live-evidence-grid">
+                      {invResult.evidenceAssessments.map((item) => (
+                        <div className={`live-evidence-card q-${item.quality.toLowerCase()}`} key={item.intent}>
+                          <div className="lev-head">
+                            <span>{readable(item.intent)}</span>
+                            <span className={`quality-badge q-${item.quality.toLowerCase()}`}>{item.quality}</span>
+                          </div>
+                          <dl className="lev-dl">
+                            <div><dt>Coverage</dt><dd>{readable(item.coverage)}</dd></div>
+                            <div><dt>Verification</dt><dd>{readable(item.verification)}</dd></div>
+                          </dl>
+                          {item.missingEvidence.length > 0 && (
+                            <ul className="lev-missing">
+                              {item.missingEvidence.map((m, i) => <li key={i}>{m}</li>)}
+                            </ul>
+                          )}
+                          {item.contradictions.length > 0 && (
+                            <ul className="lev-contradictions">
+                              {item.contradictions.map((c, i) => <li key={i}>{String(c)}</li>)}
+                            </ul>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className={`live-decision-banner ${invResult.verdict.toLowerCase()}`}>
+                  <div className="live-step">
+                    <p className="eyebrow">05 · NEXORA VERDICT</p>
+                    <h3 className="decision-value">{invResult.verdict}</h3>
+                    <p className="decision-explanation">{invResult.verdictLabel}</p>
+                    <p className="decision-explanation">{invResult.verdictSupport}</p>
+                  </div>
+                </div>
+
+                {invResult.unsupportedAspects.length > 0 && (
+                  <div className="live-step">
+                    <div className="live-error">
+                      <strong>Aspects Nexora could not route</strong>
+                      {invResult.unsupportedAspects.map((a, i) => <span key={i}>{a}</span>)}
+                    </div>
+                  </div>
+                )}
+
+                {invResult.settlementProvenance.length > 0 && (
+                  <div className="live-step">
+                    <p className="eyebrow">SETTLEMENT PROVENANCE</p>
+                    <h3>Actual payments for this run</h3>
+                    <div className="provenance-grid">
+                      {invResult.settlementProvenance.map((p) => (
+                        <div className="provenance-card" key={p.logicalCallId}>
+                          <div><span>Intent</span><strong>{readable(p.intent)}</strong></div>
+                          <div><span>Provider</span><strong>{p.minerName}</strong></div>
+                          <div><span>Settled</span><strong>{(p.settledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong></div>
+                          <div><span>Call ID</span><code className="call-id">{p.logicalCallId}</code></div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="provenance-total">
+                      Total settled: <strong>{(invResult.totalSettledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong> across {invResult.paidCallCount} paid {invResult.paidCallCount === 1 ? "call" : "calls"}
+                    </p>
+                  </div>
+                )}
+
+                <div className="live-step">
+                  <div className="replay-trail-callout">
+                    <strong>EVERY DECISION LEAVES A TRAIL</strong>
+                    <p>Decision Replay reconstructs what was asked, what was verified, how each piece of evidence was judged, and how the verdict was reached.</p>
+                  </div>
+                  <button
+                    className="replay-trigger"
+                    type="button"
+                    aria-expanded={showInvReplay}
+                    onClick={() => setShowInvReplay(!showInvReplay)}
+                  >
+                    <span>{showInvReplay ? "Hide Decision Replay" : "View Decision Replay & Audit Proof"}</span>
+                    <b>{invResult.decisionReplay.validation.status} &#x2197;</b>
+                  </button>
+                  {showInvReplay && (
+                    <div className="replay">
+                      <div className="replay-head">
+                        <div>
+                          <p className="eyebrow">DECISION REPLAY &middot; INTEGRITY PROOF</p>
+                          <h3>
+                            {invResult.decisionReplay.validation.matches
+                              ? "Deterministic Integrity Verified: identical inputs → identical decision."
+                              : "Integrity Mismatch: recorded decision differs from recalculation."}
+                          </h3>
+                        </div>
+                        <span className={invResult.decisionReplay.validation.matches ? "match" : "mismatch"}>
+                          {invResult.decisionReplay.validation.matches ? "✓ VERIFIED MATCH" : "× MISMATCH"}
+                        </span>
+                      </div>
+                      <div className="replay-meta">
+                        <div><small>Run ID</small><code>{invResult.runId}</code></div>
+                        <div><small>SHA-256 Fingerprint</small><code>{invResult.decisionReplay.fingerprint}</code></div>
+                      </div>
+                      <div className="timeline-wrap">
+                        <h4>Replay Timeline</h4>
+                        <ol className="timeline">
+                          {invResult.decisionReplay.timeline.map((item) => (
+                            <li key={item.order}>
+                              <span>{String(item.order).padStart(2, "0")}</span>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <p>{item.summary}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
           </div>
         )}
 
-        {liveResult && (
-          <div className="live-result">
-
-            {/* Step 1: YOUR QUESTION */}
-            <div className="live-step">
-              <p className="eyebrow">01 · DECISION QUESTION</p>
-              <h3>YOUR QUESTION</h3>
-              <div className="question-display-box">
-                <p className="main-user-question">
-                  "{liveResult.userQuestion ?? liveResult.requirementPlan.userQuestion ?? "Is there enough reliable evidence for my agent to authorize this supplier payment?"}"
-                </p>
-                <div className="question-meta-row">
-                  <span>Action: <strong>{liveResult.proposedAction.type}</strong></span>
-                  <span>Reference: <code>{liveResult.proposedAction.subject.reference}</code></span>
-                  <span>Risk Class: <strong>{liveResult.proposedAction.riskClass}</strong></span>
-                </div>
+        {/* AUTHORIZE ACTION MODE */}
+        {activeMode === "AUTHORIZE_ACTION" && (
+          <div className="authorize-panel">
+            <div className="live-decision-proposal">
+              <p className="eyebrow">AGENT PROPOSAL</p>
+              <div className="proposal-card">
+                <div className="proposal-row"><span>Action</span><strong>{liveAction.type}</strong></div>
+                <div className="proposal-row"><span>Description</span><strong>{liveAction.description}</strong></div>
+                <div className="proposal-row"><span>Supplier Reference</span><code>{liveAction.subject.reference}</code></div>
+                <div className="proposal-row"><span>Supplier URL</span><code>{liveAction.subject.supplierUrl}</code></div>
+                <div className="proposal-row"><span>Risk Class</span><code>{liveAction.riskClass}</code></div>
               </div>
             </div>
 
-            {/* Step 2: WHAT NEXORA NEEDS TO VERIFY (EVIDENCE QUESTIONS) */}
-            <div className="live-step">
-              <p className="eyebrow">02 · EVIDENCE QUESTIONS GENERATED</p>
-              <h3>WHAT NEXORA NEEDS TO VERIFY</h3>
-              <div className="requirements-grid">
-                {(liveResult.evidenceQuestions ?? liveResult.requirementPlan.requirements).map((req: any) => (
-                  <div className="requirement-card" key={req.intent}>
-                    <div className="req-card-head">
-                      <span className="req-intent">{readable(req.intent)}</span>
-                      <span className={`req-mandatory ${req.mandatory ? "mandatory" : "optional"}`}>
-                        {req.mandatory ? "Mandatory" : "Optional"}
-                      </span>
-                    </div>
-                    {req.question && <h4 className="req-question-text">"{req.question}"</h4>}
-                    {req.whyItMatters && (
-                      <p className="req-why-text">
-                        <strong>Why this matters:</strong> {req.whyItMatters}
-                      </p>
-                    )}
-                    <div className="req-footer-row">
-                      <code className="req-quality">Min quality: {req.minimumQuality}</code>
-                      {req.requirementStatus && (
-                        <span className={`req-status-tag ${req.requirementStatus.toLowerCase()}`}>
-                          {req.requirementStatus}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
+            <div className="live-decision-trigger">
+              <button
+                className="btn-live-decision"
+                type="button"
+                disabled={liveLoading}
+                onClick={submitLiveDecision}
+              >
+                {liveLoading ? (
+                  <><span className="spinner" aria-hidden="true" /> Acquiring intelligence…</>
+                ) : (
+                  <>Run Live Decision &rarr;</>
+                )}
+              </button>
+              <p className="live-caution">
+                This run makes real Telegraph calls and settles on Base Sepolia.
+                Rate limited to one run per minute. Maximum 0.03 USDC per run.
+              </p>
             </div>
 
-            {/* Step 3: TELEGRAPH ROUTING & MINER SELECTION */}
-            <div className="live-step">
-              <p className="eyebrow">03 · TELEGRAPH ROUTING & MINER SELECTION</p>
-              <h3>SELECTIVE MINER ROUTING & ACQUISITION</h3>
-              <div className="intel-grid">
-                {liveResult.acquiredIntelligence.map((item) => {
-                  const matchingEq = liveResult.evidenceQuestions?.find((eq) => eq.intent === item.intent);
-                  return (
-                    <div className="intel-card" key={item.intent}>
-                      <div className="intel-card-head">
-                        <span className="intel-intent">{readable(item.intent)}</span>
-                        <span className={`intel-status ${item.outcome.status}`}>{item.outcome.status.replace(/_/g, " ")}</span>
-                      </div>
-                      {item.minerId !== "NONE" && item.minerId !== "UNKNOWN" && (
-                        <dl className="intel-dl">
-                          <div><dt>Provider</dt><dd>{item.minerName}</dd></div>
-                          <div><dt>Telegraph Rank</dt><dd>#{item.rank}</dd></div>
-                          <div><dt>Endpoint</dt><dd><code>{item.method} {item.endpoint}</code></dd></div>
-                          <div><dt>Advertised Price</dt><dd>{(item.advertisedPriceMicroUsdc / 1_000_000).toFixed(4)} USDC</dd></div>
-                          <div><dt>Call ID</dt><dd><code className="call-id">{item.logicalCallId}</code></dd></div>
-                        </dl>
-                      )}
-                      {item.selectionExplanation && (
-                        <div className="selection-expl-box">
-                          <small>WHY THIS MINER</small>
-                          <p>{item.selectionExplanation}</p>
-                        </div>
-                      )}
-                      {item.requestSummary && item.requestSummary.parameters && (
-                        <div className="request-summary-box">
-                          <small>WHAT NEXORA ASKED (SANITIZED)</small>
-                          <code>{JSON.stringify(item.requestSummary.parameters)}</code>
-                        </div>
-                      )}
-                      {matchingEq?.decisionContribution && (
-                        <div className="contribution-box">
-                          <small>EVIDENCE CONTRIBUTION</small>
-                          <p>{matchingEq.decisionContribution}</p>
-                        </div>
-                      )}
-                      {item.outcome.status !== "acquired" && (
-                        <p className="intel-reason">{item.outcome.reason ?? "No compatible provider found"}</p>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Step 4: Evidence Quality */}
-            <div className="live-step">
-              <p className="eyebrow">04 · EVIDENCE QUALITY & CONFLICT ASSESSMENT</p>
-              <h3>What Nexora trusts, questions, or cannot verify</h3>
-              <div className="live-evidence-grid">
-                {liveResult.evidenceAssessments.map((item) => (
-                  <div className={`live-evidence-card q-${item.quality.toLowerCase()}`} key={item.intent}>
-                    <div className="lev-head">
-                      <span>{readable(item.intent)}</span>
-                      <span className={`quality-badge q-${item.quality.toLowerCase()}`}>{item.quality}</span>
-                    </div>
-                    <dl className="lev-dl">
-                      <div><dt>Coverage</dt><dd>{readable(item.coverage)}</dd></div>
-                      <div><dt>Verification</dt><dd>{readable(item.verification)}</dd></div>
-                    </dl>
-                    {item.missingEvidence.length > 0 && (
-                      <ul className="lev-missing">
-                        {item.missingEvidence.map((m, i) => <li key={i}>{m}</li>)}
-                      </ul>
-                    )}
-                    {item.contradictions.length > 0 && (
-                      <ul className="lev-contradictions">
-                        {item.contradictions.map((c, i) => <li key={i}>{String(c)}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Step 5: Nexora Decision */}
-            <div className={`live-decision-banner ${liveResult.actionDecision.decision.toLowerCase()}`}>
-              <div className="live-step">
-                <p className="eyebrow">05 · NEXORA DECISION</p>
-                <h3 className="decision-value">{liveResult.actionDecision.decision}</h3>
-                <p className="decision-explanation">
-                  {formatDecisionExplanation(
-                    liveResult.actionDecision.decision,
-                    liveResult.actionDecision.reasons,
-                    liveResult.resolution.unresolvedConditions
-                  )}
-                </p>
-                <details className="raw-reasons-toggle">
-                  <summary>View audit reason codes</summary>
-                  <code>{liveResult.actionDecision.reasons.join(" · ")}</code>
-                </details>
-                <div className="decision-stat-row">
-                  <span><b>{liveResult.actionDecision.satisfiedRequirements.length}</b> satisfied</span>
-                  <span><b>{liveResult.actionDecision.unsatisfiedRequirements.length}</b> unresolved</span>
-                  <span><b>{liveResult.actionDecision.blockingEvidence.length}</b> blocking</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Step 6: Agent Response */}
-            <div className="live-step">
-              <p className="eyebrow">06 · AGENT RESPONSE</p>
-              <div className={`agent-state-card ${liveResult.agentState.toLowerCase()}`}>
-                <h3>{liveResult.agentState}</h3>
-                <p className="agent-label">{liveResult.agentStateLabel}</p>
-                <p className="agent-support">{liveResult.agentStateSupport}</p>
-              </div>
-            </div>
-
-            {/* Step 7: Why */}
-            <div className="live-step">
-              <p className="eyebrow">07 · RESOLUTION GUIDANCE</p>
-              <h3>Plain language explanation</h3>
-              {liveResult.resolution.resolved ? (
-                <p className="resolution-resolved">
-                  All required evidence was satisfied. The agent can proceed.
-                </p>
-              ) : (
-                <ul className="unresolved-list">
-                  {liveResult.resolution.unresolvedConditions.map((cond, i) => (
-                    <li key={i}>
-                      <strong>{cond.requiredCondition}</strong>
-                      <span>{cond.description}</span>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Step 8: Settlement Provenance */}
-            {liveResult.settlementProvenance.length > 0 && (
-              <div className="live-step">
-                <p className="eyebrow">SETTLEMENT PROVENANCE</p>
-                <h3>Actual payments for this run</h3>
-                <div className="provenance-grid">
-                  {liveResult.settlementProvenance.map((p) => (
-                    <div className="provenance-card" key={p.logicalCallId}>
-                      <div><span>Intent</span><strong>{readable(p.intent)}</strong></div>
-                      <div><span>Provider</span><strong>{p.minerName}</strong></div>
-                      <div><span>Settled</span><strong>{(p.settledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong></div>
-                      <div><span>Call ID</span><code className="call-id">{p.logicalCallId}</code></div>
-                    </div>
-                  ))}
-                </div>
-                <p className="provenance-total">
-                  Total settled: <strong>{(liveResult.totalSettledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong> across {liveResult.paidCallCount} paid {liveResult.paidCallCount === 1 ? "call" : "calls"}
-                </p>
+            {liveError && (
+              <div className="live-error" role="alert">
+                <strong>Live decision unavailable</strong>
+                <span>{liveError}</span>
               </div>
             )}
 
-            {/* Step 9: Decision Replay */}
-            <div className="live-step">
-              <div className="replay-trail-callout">
-                <strong>EVERY DECISION LEAVES A TRAIL</strong>
-                <p>Decision Replay reconstructs what the agent proposed, what intelligence Nexora requested, what evidence returned, how that evidence was judged, and why the agent ultimately proceeded or stopped.</p>
-              </div>
-              <button
-                className="replay-trigger"
-                type="button"
-                aria-expanded={showLiveReplay}
-                onClick={() => setShowLiveReplay(!showLiveReplay)}
-              >
-                <span>{showLiveReplay ? "Hide Decision Replay" : "View Decision Replay & Audit Proof"}</span>
-                <b>{liveResult.decisionReplay.validation.status} ↗</b>
-              </button>
-              {showLiveReplay && (
-                <div className="replay">
-                  <div className="replay-head">
-                    <div>
-                      <p className="eyebrow">DECISION REPLAY · INTEGRITY PROOF</p>
-                      <h3>
-                        {liveResult.decisionReplay.validation.matches
-                          ? "Deterministic Integrity Verified: identical inputs → identical decision."
-                          : "Integrity Mismatch: recorded decision differs from recalculation."}
-                      </h3>
+            {liveResult && (
+              <div className="live-result">
+
+                {/* Step 1: YOUR QUESTION */}
+                <div className="live-step">
+                  <p className="eyebrow">01 · DECISION QUESTION</p>
+                  <h3>YOUR QUESTION</h3>
+                  <div className="question-display-box">
+                    <p className="main-user-question">
+                      "{liveResult.userQuestion ?? liveResult.requirementPlan.userQuestion ?? "Is there enough reliable evidence for my agent to authorize this supplier payment?"}"
+                    </p>
+                    <div className="question-meta-row">
+                      <span>Action: <strong>{liveResult.proposedAction.type}</strong></span>
+                      <span>Reference: <code>{liveResult.proposedAction.subject.reference}</code></span>
+                      <span>Risk Class: <strong>{liveResult.proposedAction.riskClass}</strong></span>
                     </div>
-                    <span className={liveResult.decisionReplay.validation.matches ? "match" : "mismatch"}>
-                      {liveResult.decisionReplay.validation.matches ? "✓ VERIFIED MATCH" : "× MISMATCH"}
-                    </span>
-                  </div>
-                  <div className="replay-meta">
-                    <div><small>Run ID</small><code>{liveResult.runId}</code></div>
-                    <div><small>Decision ID</small><code>{liveResult.decisionReplay.decisionId}</code></div>
-                    <div><small>SHA-256 Fingerprint</small><code>{liveResult.decisionReplay.fingerprint}</code></div>
-                    <div><small>Recorded / Recomputed</small>
-                      <code>{liveResult.decisionReplay.validation.recordedDecision} / {liveResult.decisionReplay.validation.recomputedDecision}</code>
-                    </div>
-                  </div>
-                  <div className="timeline-wrap">
-                    <h4>Replay Timeline</h4>
-                    <ol className="timeline">
-                      {liveResult.decisionReplay.timeline.map((item) => (
-                        <li key={item.order}>
-                          <span>{String(item.order).padStart(2, "0")}</span>
-                          <div>
-                            <strong>{item.title}</strong>
-                            <p>{item.summary}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
                   </div>
                 </div>
-              )}
-            </div>
+
+                {/* Step 2: WHAT NEXORA NEEDS TO VERIFY (EVIDENCE QUESTIONS) */}
+                <div className="live-step">
+                  <p className="eyebrow">02 · EVIDENCE QUESTIONS GENERATED</p>
+                  <h3>WHAT NEXORA NEEDS TO VERIFY</h3>
+                  <div className="requirements-grid">
+                    {(liveResult.evidenceQuestions ?? liveResult.requirementPlan.requirements).map((req: any) => (
+                      <div className="requirement-card" key={req.intent}>
+                        <div className="req-card-head">
+                          <span className="req-intent">{readable(req.intent)}</span>
+                          <span className={`req-mandatory ${req.mandatory ? "mandatory" : "optional"}`}>
+                            {req.mandatory ? "Mandatory" : "Optional"}
+                          </span>
+                        </div>
+                        {req.question && <h4 className="req-question-text">"{req.question}"</h4>}
+                        {req.whyItMatters && (
+                          <p className="req-why-text">
+                            <strong>Why this matters:</strong> {req.whyItMatters}
+                          </p>
+                        )}
+                        <div className="req-footer-row">
+                          <code className="req-quality">Min quality: {req.minimumQuality}</code>
+                          {req.requirementStatus && (
+                            <span className={`req-status-tag ${req.requirementStatus.toLowerCase()}`}>
+                              {req.requirementStatus}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 3: TELEGRAPH ROUTING & MINER SELECTION */}
+                <div className="live-step">
+                  <p className="eyebrow">03 · TELEGRAPH ROUTING & MINER SELECTION</p>
+                  <h3>SELECTIVE MINER ROUTING & ACQUISITION</h3>
+                  <div className="intel-grid">
+                    {liveResult.acquiredIntelligence.map((item) => {
+                      const matchingEq = liveResult.evidenceQuestions?.find((eq) => eq.intent === item.intent);
+                      return (
+                        <div className="intel-card" key={item.intent}>
+                          <div className="intel-card-head">
+                            <span className="intel-intent">{readable(item.intent)}</span>
+                            <span className={`intel-status ${item.outcome.status}`}>{item.outcome.status.replace(/_/g, " ")}</span>
+                          </div>
+                          {item.minerId !== "NONE" && item.minerId !== "UNKNOWN" && (
+                            <dl className="intel-dl">
+                              <div><dt>Provider</dt><dd>{item.minerName}</dd></div>
+                              <div><dt>Telegraph Rank</dt><dd>#{item.rank}</dd></div>
+                              <div><dt>Endpoint</dt><dd><code>{item.method} {item.endpoint}</code></dd></div>
+                              <div><dt>Advertised Price</dt><dd>{(item.advertisedPriceMicroUsdc / 1_000_000).toFixed(4)} USDC</dd></div>
+                              <div><dt>Call ID</dt><dd><code className="call-id">{item.logicalCallId}</code></dd></div>
+                            </dl>
+                          )}
+                          {item.selectionExplanation && (
+                            <div className="selection-expl-box">
+                              <small>WHY THIS MINER</small>
+                              <p>{item.selectionExplanation}</p>
+                            </div>
+                          )}
+                          {item.requestSummary && item.requestSummary.parameters && (
+                            <div className="request-summary-box">
+                              <small>WHAT NEXORA ASKED (SANITIZED)</small>
+                              <code>{JSON.stringify(item.requestSummary.parameters)}</code>
+                            </div>
+                          )}
+                          {matchingEq?.decisionContribution && (
+                            <div className="contribution-box">
+                              <small>EVIDENCE CONTRIBUTION</small>
+                              <p>{matchingEq.decisionContribution}</p>
+                            </div>
+                          )}
+                          {item.outcome.status !== "acquired" && (
+                            <p className="intel-reason">{item.outcome.reason ?? "No compatible provider found"}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Step 4: Evidence Quality */}
+                <div className="live-step">
+                  <p className="eyebrow">04 · EVIDENCE QUALITY & CONFLICT ASSESSMENT</p>
+                  <h3>What Nexora trusts, questions, or cannot verify</h3>
+                  <div className="live-evidence-grid">
+                    {liveResult.evidenceAssessments.map((item) => (
+                      <div className={`live-evidence-card q-${item.quality.toLowerCase()}`} key={item.intent}>
+                        <div className="lev-head">
+                          <span>{readable(item.intent)}</span>
+                          <span className={`quality-badge q-${item.quality.toLowerCase()}`}>{item.quality}</span>
+                        </div>
+                        <dl className="lev-dl">
+                          <div><dt>Coverage</dt><dd>{readable(item.coverage)}</dd></div>
+                          <div><dt>Verification</dt><dd>{readable(item.verification)}</dd></div>
+                        </dl>
+                        {item.missingEvidence.length > 0 && (
+                          <ul className="lev-missing">
+                            {item.missingEvidence.map((m, i) => <li key={i}>{m}</li>)}
+                          </ul>
+                        )}
+                        {item.contradictions.length > 0 && (
+                          <ul className="lev-contradictions">
+                            {item.contradictions.map((c, i) => <li key={i}>{String(c)}</li>)}
+                          </ul>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Step 5: Nexora Decision */}
+                <div className={`live-decision-banner ${liveResult.actionDecision.decision.toLowerCase()}`}>
+                  <div className="live-step">
+                    <p className="eyebrow">05 · NEXORA DECISION</p>
+                    <h3 className="decision-value">{liveResult.actionDecision.decision}</h3>
+                    <p className="decision-explanation">
+                      {formatDecisionExplanation(
+                        liveResult.actionDecision.decision,
+                        liveResult.actionDecision.reasons,
+                        liveResult.resolution.unresolvedConditions
+                      )}
+                    </p>
+                    <details className="raw-reasons-toggle">
+                      <summary>View audit reason codes</summary>
+                      <code>{liveResult.actionDecision.reasons.join(" · ")}</code>
+                    </details>
+                    <div className="decision-stat-row">
+                      <span><b>{liveResult.actionDecision.satisfiedRequirements.length}</b> satisfied</span>
+                      <span><b>{liveResult.actionDecision.unsatisfiedRequirements.length}</b> unresolved</span>
+                      <span><b>{liveResult.actionDecision.blockingEvidence.length}</b> blocking</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Step 6: Agent Response */}
+                <div className="live-step">
+                  <p className="eyebrow">06 · AGENT RESPONSE</p>
+                  <div className={`agent-state-card ${liveResult.agentState.toLowerCase()}`}>
+                    <h3>{liveResult.agentState}</h3>
+                    <p className="agent-label">{liveResult.agentStateLabel}</p>
+                    <p className="agent-support">{liveResult.agentStateSupport}</p>
+                  </div>
+                </div>
+
+                {/* Step 7: Why */}
+                <div className="live-step">
+                  <p className="eyebrow">07 · RESOLUTION GUIDANCE</p>
+                  <h3>Plain language explanation</h3>
+                  {liveResult.resolution.resolved ? (
+                    <p className="resolution-resolved">
+                      All required evidence was satisfied. The agent can proceed.
+                    </p>
+                  ) : (
+                    <ul className="unresolved-list">
+                      {liveResult.resolution.unresolvedConditions.map((cond, i) => (
+                        <li key={i}>
+                          <strong>{cond.requiredCondition}</strong>
+                          <span>{cond.description}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+
+                {/* Step 8: Settlement Provenance */}
+                {liveResult.settlementProvenance.length > 0 && (
+                  <div className="live-step">
+                    <p className="eyebrow">SETTLEMENT PROVENANCE</p>
+                    <h3>Actual payments for this run</h3>
+                    <div className="provenance-grid">
+                      {liveResult.settlementProvenance.map((p) => (
+                        <div className="provenance-card" key={p.logicalCallId}>
+                          <div><span>Intent</span><strong>{readable(p.intent)}</strong></div>
+                          <div><span>Provider</span><strong>{p.minerName}</strong></div>
+                          <div><span>Settled</span><strong>{(p.settledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong></div>
+                          <div><span>Call ID</span><code className="call-id">{p.logicalCallId}</code></div>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="provenance-total">
+                      Total settled: <strong>{(liveResult.totalSettledMicroUsdc / 1_000_000).toFixed(4)} USDC</strong> across {liveResult.paidCallCount} paid {liveResult.paidCallCount === 1 ? "call" : "calls"}
+                    </p>
+                  </div>
+                )}
+
+                {/* Step 9: Decision Replay */}
+                <div className="live-step">
+                  <div className="replay-trail-callout">
+                    <strong>EVERY DECISION LEAVES A TRAIL</strong>
+                    <p>Decision Replay reconstructs what the agent proposed, what intelligence Nexora requested, what evidence returned, how that evidence was judged, and why the agent ultimately proceeded or stopped.</p>
+                  </div>
+                  <button
+                    className="replay-trigger"
+                    type="button"
+                    aria-expanded={showLiveReplay}
+                    onClick={() => setShowLiveReplay(!showLiveReplay)}
+                  >
+                    <span>{showLiveReplay ? "Hide Decision Replay" : "View Decision Replay & Audit Proof"}</span>
+                    <b>{liveResult.decisionReplay.validation.status} ↗</b>
+                  </button>
+                  {showLiveReplay && (
+                    <div className="replay">
+                      <div className="replay-head">
+                        <div>
+                          <p className="eyebrow">DECISION REPLAY · INTEGRITY PROOF</p>
+                          <h3>
+                            {liveResult.decisionReplay.validation.matches
+                              ? "Deterministic Integrity Verified: identical inputs → identical decision."
+                              : "Integrity Mismatch: recorded decision differs from recalculation."}
+                          </h3>
+                        </div>
+                        <span className={liveResult.decisionReplay.validation.matches ? "match" : "mismatch"}>
+                          {liveResult.decisionReplay.validation.matches ? "✓ VERIFIED MATCH" : "× MISMATCH"}
+                        </span>
+                      </div>
+                      <div className="replay-meta">
+                        <div><small>Run ID</small><code>{liveResult.runId}</code></div>
+                        <div><small>Decision ID</small><code>{liveResult.decisionReplay.decisionId}</code></div>
+                        <div><small>SHA-256 Fingerprint</small><code>{liveResult.decisionReplay.fingerprint}</code></div>
+                        <div><small>Recorded / Recomputed</small>
+                          <code>{liveResult.decisionReplay.validation.recordedDecision} / {liveResult.decisionReplay.validation.recomputedDecision}</code>
+                        </div>
+                      </div>
+                      <div className="timeline-wrap">
+                        <h4>Replay Timeline</h4>
+                        <ol className="timeline">
+                          {liveResult.decisionReplay.timeline.map((item) => (
+                            <li key={item.order}>
+                              <span>{String(item.order).padStart(2, "0")}</span>
+                              <div>
+                                <strong>{item.title}</strong>
+                                <p>{item.summary}</p>
+                              </div>
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+              </div>
+            )}
           </div>
         )}
       </section>
+
 
       {/* What Can Nexora Help Decide? Section */}
       <section className="sample-decisions-section" id="sample-decisions">

@@ -177,3 +177,118 @@ test("api.ts source contains no direct payment-adapter import", async () => {
   assert.doesNotMatch(source, /from ['"].+(payment-adapter|transport|registry)|wrapFetchWithPayment|privateKeyToAccount|TELEGRAPH_EVM_PRIVATE_KEY/,
     "api.js must not directly import payment infrastructure");
 });
+
+// /v1/investigations/run tests — no paid calls, no signatures
+test("GET /v1/investigations/run returns 405 Method Not Allowed", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`);
+  assert.equal(response.status, 405);
+  assert.equal(response.headers.get("allow"), "POST");
+});
+
+test("POST /v1/investigations/run without body returns 400", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: "",
+  });
+  assert.ok([400].includes(response.status));
+  const body = await response.json();
+  assert.ok(body.error, "must return an error body");
+});
+
+test("POST /v1/investigations/run with missing question returns VALIDATION_ERROR", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "INVESTIGATE", question: "" }),
+  });
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error.code, "VALIDATION_ERROR");
+  assert.ok(body.error.details.includes("request:question_required"));
+});
+
+test("POST /v1/investigations/run with wrong mode returns VALIDATION_ERROR", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "AUTHORIZE_ACTION", question: "test" }),
+  });
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error.code, "VALIDATION_ERROR");
+  assert.ok(body.error.details.includes("request:mode_must_be_INVESTIGATE"));
+});
+
+test("POST /v1/investigations/run with invalid source type returns VALIDATION_ERROR", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "INVESTIGATE", question: "Is this safe?", sources: [{ type: "IMAGE", value: "some-value" }] }),
+  });
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error.code, "VALIDATION_ERROR");
+  assert.ok(body.error.details.includes("request:invalid_sources"));
+});
+
+test("POST /v1/investigations/run route is registered (not 404, not 405 for POST)", async () => {
+  const response = await fetch(`${baseUrl}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ mode: "INVESTIGATE", question: "Is this supplier URL safe to proceed with?", sources: [{ type: "URL", value: "https://example.com/" }] }),
+  });
+  // Route must exist — any non-404/non-405 status is valid (will be 400 validation or 503 guard disabled)
+  assert.notEqual(response.status, 404, "/v1/investigations/run route must be registered");
+  assert.notEqual(response.status, 405, "/v1/investigations/run must accept POST");
+});
+
+// x402 challenge parsing tests
+test("parseChallenge: accepts valid base64-encoded JSON challenge", async () => {
+  const { parseChallenge } = await import("../src/challenge.js");
+  const raw = { scheme: "exact", network: "eip155:84532", asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", amount: "10000", payTo: "0xABCDef1234567890abcdef1234567890ABCDEF12" };
+  const b64 = Buffer.from(JSON.stringify(raw)).toString("base64");
+  const parsed = parseChallenge(b64);
+  assert.equal(parsed.scheme, "exact");
+  assert.equal(parsed.network, "eip155:84532");
+  assert.equal(parsed.payTo, "0xABCDef1234567890abcdef1234567890ABCDEF12");
+});
+
+test("parseChallenge: accepts plain JSON-string header (production x402 v1 format)", async () => {
+  const { parseChallenge } = await import("../src/challenge.js");
+  const raw = { scheme: "exact", network: "eip155:84532", asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", amount: "10000", payTo: "0xABCDef1234567890abcdef1234567890ABCDEF12" };
+  const parsed = parseChallenge(JSON.stringify(raw));
+  assert.equal(parsed.scheme, "exact");
+  assert.equal(parsed.payTo, "0xABCDef1234567890abcdef1234567890ABCDEF12");
+});
+
+test("parseChallenge: accepts accepts[0] envelope format", async () => {
+  const { parseChallenge } = await import("../src/challenge.js");
+  const raw = { accepts: [{ scheme: "exact", network: "eip155:84532", asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", maxAmountRequired: "10000", payTo: "0xABCDef1234567890abcdef1234567890ABCDEF12" }] };
+  const parsed = parseChallenge(raw);
+  assert.equal(parsed.scheme, "exact");
+  assert.equal(parsed.amount, "10000");
+});
+
+test("parseChallenge: accepts alternate payTo spellings (pay_to)", async () => {
+  const { parseChallenge } = await import("../src/challenge.js");
+  const raw = { scheme: "exact", network: "eip155:84532", asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", amount: "10000", pay_to: "0xABCDef1234567890abcdef1234567890ABCDEF12" };
+  const parsed = parseChallenge(raw);
+  assert.equal(parsed.payTo, "0xABCDef1234567890abcdef1234567890ABCDEF12");
+});
+
+test("parseChallenge: throws diagnostic error identifying missing field", async () => {
+  const { parseChallenge } = await import("../src/challenge.js");
+  const raw = { scheme: "exact", network: "eip155:84532", asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", amount: "10000" /* payTo missing */ };
+  assert.throws(() => parseChallenge(raw), (err) => {
+    assert.ok(err instanceof Error);
+    assert.ok(err.message.includes("payTo"), `expected 'payTo' in error message, got: ${err.message}`);
+    return true;
+  });
+});
+
+test("parseChallenge: throws on completely invalid input", async () => {
+  const { parseChallenge } = await import("../src/challenge.js");
+  assert.throws(() => parseChallenge(null), /Malformed payment challenge/);
+  assert.throws(() => parseChallenge("this is not json or base64"), /Malformed payment challenge/);
+});

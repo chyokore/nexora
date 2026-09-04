@@ -3,6 +3,30 @@ export const DISCOVERY_INTENTS = [...PAID_INTENTS, "FACT_CHECK", "NEWS_SEARCH"] 
 export type Intent = (typeof PAID_INTENTS)[number];
 export type DiscoveryIntent = (typeof DISCOVERY_INTENTS)[number];
 
+// ---------------------------------------------------------------------------
+// Generalized decision modes
+// ---------------------------------------------------------------------------
+
+export type DecisionMode = "INVESTIGATE" | "AUTHORIZE_ACTION";
+
+/** A single piece of user-supplied evidence for an investigation. */
+export interface DecisionSource {
+  type: "TEXT" | "URL" | "ONCHAIN_REFERENCE";
+  value: string;
+  label?: string;
+}
+
+/** Input for INVESTIGATE mode decisions. */
+export interface InvestigationInput {
+  mode: "INVESTIGATE";
+  question: string;
+  sources?: DecisionSource[];
+  context?: string;
+}
+
+/** Verdict produced by the investigation policy. */
+export type InvestigationVerdict = "SUPPORTED" | "DISPUTED" | "INCONCLUSIVE";
+
 export interface JsonSchema {
   properties?: Record<string, { type?: string | string[]; enum?: unknown[] }>;
   required?: string[];

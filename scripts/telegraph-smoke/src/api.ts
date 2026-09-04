@@ -8,10 +8,12 @@ import type { ProposedAction } from "./action-policy.js";
 import type { EvidenceAssessment } from "./types.js";
 import { LiveDecisionGuard } from "./live-guard.js";
 import { runReferenceAgent, requireExecutionEnvironment, inspectSignerConfig, type ReferenceAgentRunResult } from "./reference-agent.js";
+import { runInvestigation } from "./investigation-runner.js";
+import type { InvestigationInput, DecisionSource } from "./types.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
-const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify", "/v1/agent/run"]);
+const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify", "/v1/agent/run", "/v1/investigations/run"]);
 /** Shared in-process guard — stats reset on server restart. */
 const liveGuard = new LiveDecisionGuard();
 const LOCAL_ORIGINS = ["http://127.0.0.1:5173", "http://localhost:5173"];
@@ -131,6 +133,35 @@ function agentRunInput(value: unknown): { proposedAction: ProposedAction; userQu
   return record as { proposedAction: ProposedAction; userQuestion?: string };
 }
 
+function isDecisionSource(s: unknown): s is DecisionSource {
+  if (!s || typeof s !== "object" || Array.isArray(s)) return false;
+  const r = s as Record<string, unknown>;
+  return (r.type === "TEXT" || r.type === "URL" || r.type === "ONCHAIN_REFERENCE") && typeof r.value === "string";
+}
+
+function investigationInput(value: unknown): InvestigationInput {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) {
+    throw new RequestError(400, "VALIDATION_ERROR", "Investigation request is invalid", ["request:not_object"]);
+  }
+  const record = value as Record<string, unknown>;
+  const details: string[] = [];
+  if (record.mode !== "INVESTIGATE") details.push("request:mode_must_be_INVESTIGATE");
+  if (typeof record.question !== "string" || record.question.trim().length === 0) details.push("request:question_required");
+  if (record.sources !== undefined) {
+    if (!Array.isArray(record.sources) || !record.sources.every(isDecisionSource)) {
+      details.push("request:invalid_sources");
+    } else if (record.sources.length > 10) {
+      details.push("request:too_many_sources");
+    }
+  }
+  if (record.context !== undefined && typeof record.context !== "string") details.push("request:invalid_context");
+  if (details.length > 0) throw new RequestError(400, "VALIDATION_ERROR", "Investigation request is invalid", details);
+  const result: InvestigationInput = { mode: "INVESTIGATE", question: (record.question as string).trim() };
+  if (Array.isArray(record.sources)) result.sources = record.sources as DecisionSource[];
+  if (typeof record.context === "string") result.context = record.context;
+  return result;
+}
+
 async function handle(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): Promise<void> {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
   if (!routes.has(path)) { sendError(response, 404, "NOT_FOUND", "Route not found"); return; }
@@ -208,6 +239,48 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
     }
     liveGuard.endRun(result.actionDecision.decision, result.totalSettledMicroUsdc, result.paidCallCount);
     sendJson(response, 200, sanitizeReplayValue(result));
+    return;
+  }
+
+  if (path === "/v1/investigations/run") {
+    if (!liveGuard.isEnabled()) {
+      sendError(response, 503, "LIVE_AGENT_DISABLED", "Live investigations are currently disabled", ["Set ENABLE_LIVE_REFERENCE_AGENT=true to enable"]);
+      return;
+    }
+    const invInput = investigationInput(body);
+    const forwardedHeader = request.headers["x-forwarded-for"];
+    const rawIp = (typeof forwardedHeader === "string" ? forwardedHeader.split(",")[0]?.trim() : null) || request.socket?.remoteAddress || "unknown";
+    const clientKey = rawIp.replace(/^::ffff:/, "");
+    const gate = liveGuard.canRun(clientKey);
+    if (!gate.allowed) {
+      sendError(response, 429, "RATE_LIMITED", "Too many live investigation requests", [gate.reason ?? "RATE_LIMITED"]);
+      return;
+    }
+    let invEnvironment;
+    try {
+      const approvedAsset = process.env.TELEGRAPH_APPROVED_ASSET ?? "0x036CbD53842c5426634e7929541eC2318f3dCF7e";
+      invEnvironment = requireExecutionEnvironment(process.env, approvedAsset);
+    } catch (err) {
+      sendError(response, 503, "ENVIRONMENT_NOT_CONFIGURED", "Live investigations are not configured on this deployment", [err instanceof Error ? err.message : "Missing credentials"]);
+      return;
+    }
+    const invNodeUrl = process.env.TELEGRAPH_NODE_URL ?? "http://13.237.89.59:7044";
+    liveGuard.beginRun(randomUUID(), clientKey);
+    let invResult;
+    try {
+      invResult = await runInvestigation({
+        input: invInput,
+        nodeUrl: invNodeUrl,
+        fetchRegistry: fetch,
+        environment: invEnvironment,
+      });
+    } catch (err) {
+      liveGuard.endRun("REVIEW", 0, 0);
+      sendError(response, 500, "INVESTIGATION_RUN_FAILED", "The investigation run encountered an unexpected error");
+      return;
+    }
+    liveGuard.endRun("REVIEW", invResult.totalSettledMicroUsdc, invResult.paidCallCount);
+    sendJson(response, 200, sanitizeReplayValue(invResult));
     return;
   }
 

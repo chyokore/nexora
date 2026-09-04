@@ -133,14 +133,15 @@ describe("judge-facing experience", () => {
     mockApi("ALLOW");
     render(<App />);
     expect(screen.getByRole("heading", { name: /Verify Intelligence.*Bound Action/ })).toBeVisible();
-    expect(screen.getByText(/Ask a question. See the evidence behind the decision/)).toBeVisible();
+    expect(screen.getByText(/Bring Nexora a question, claim, link, or onchain reference/)).toBeVisible();
   });
 
-  it("renders the Live Decision section and Run Live Decision button", () => {
+  it("renders the Decision Workspace section and mode tabs", () => {
     mockApi("ALLOW");
     render(<App />);
-    expect(screen.getByRole("heading", { name: /See an agent ask Nexora whether it should proceed/ })).toBeVisible();
-    expect(screen.getByRole("button", { name: /Run Live Decision/ })).toBeVisible();
+    expect(screen.getByRole("heading", { name: /Bring Nexora a question/i })).toBeVisible();
+    expect(screen.getByRole("tab", { name: /INVESTIGATE/ })).toBeVisible();
+    expect(screen.getByRole("tab", { name: /AUTHORIZE ACTION/ })).toBeVisible();
   });
 
   it("renders architecture snapshot and contradiction spotlight", () => {
@@ -325,4 +326,22 @@ describe("judge-facing experience", () => {
     await evaluate();
     expect(screen.getAllByText("EVERY DECISION LEAVES A TRAIL").length).toBeGreaterThan(0);
   });
+
+  it("populates form fields when example buttons are clicked", () => {
+    mockApi("ALLOW");
+    render(<App />);
+    fireEvent.click(screen.getByRole("button", { name: "URL safety check" }));
+    expect(screen.getByLabelText("Your question")).toHaveValue("Is this supplier URL safe to proceed with?");
+    expect(document.getElementById("inv-url")).toHaveValue("https://example.com/");
+  });
+
+  it("switches between INVESTIGATE and AUTHORIZE ACTION mode tabs", () => {
+    mockApi("ALLOW");
+    render(<App />);
+    fireEvent.click(screen.getByRole("tab", { name: /AUTHORIZE ACTION/ }));
+    expect(screen.getByRole("button", { name: /Run Live Decision/ })).toBeVisible();
+    fireEvent.click(screen.getByRole("tab", { name: /INVESTIGATE/ }));
+    expect(screen.getByRole("button", { name: /Run Investigation/ })).toBeVisible();
+  });
 });
+

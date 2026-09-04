@@ -1,4 +1,4 @@
-import type { DiscoveryResponse, EvaluationResponse, EvidenceAssessment, LiveDecisionRunResult, ProposedAction } from "./contracts";
+import type { DiscoveryResponse, EvaluationResponse, EvidenceAssessment, InvestigationInput, InvestigationRunResult, LiveDecisionRunResult, ProposedAction } from "./contracts";
 
 const apiBase = (import.meta.env.VITE_NEXORA_API_URL as string | undefined)?.replace(/\/$/, "") ?? "/api";
 
@@ -41,3 +41,25 @@ export async function runLiveDecision(proposedAction: ProposedAction): Promise<L
   return body as LiveDecisionRunResult;
 }
 
+export async function runInvestigation(input: InvestigationInput): Promise<InvestigationRunResult> {
+  const response = await fetch(`${apiBase}/v1/investigations/run`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => null) as InvestigationRunResult | { error?: { code?: string; message?: string; details?: string[] } } | null;
+  if (!response.ok) {
+    if (body && "error" in body) {
+      const err = body.error;
+      if (err?.code === "LIVE_AGENT_DISABLED") throw new Error("Live investigations are currently disabled on this deployment.");
+      if (err?.code === "RATE_LIMITED") throw new Error(`Rate limit reached. ${err.details?.[0] ?? "Please wait before trying again."}`);
+      if (err?.code === "ENVIRONMENT_NOT_CONFIGURED") throw new Error("Live investigations are not configured on this deployment.");
+      throw new Error(err?.message ?? `Investigation request failed (${response.status})`);
+    }
+    throw new Error(`Investigation request failed (${response.status})`);
+  }
+  if (!body || !("runId" in body) || !("verdict" in body)) {
+    throw new Error("The Investigation API returned a malformed response");
+  }
+  return body as InvestigationRunResult;
+}

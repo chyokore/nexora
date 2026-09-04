@@ -1,6 +1,26 @@
 export type Decision = "ALLOW" | "REVIEW" | "BLOCK";
 export type Quality = "STRONG" | "USABLE" | "LIMITED" | "INSUFFICIENT" | "CONTRADICTED" | "INVALID";
 
+// ---------------------------------------------------------------------------
+// Generalized decision modes
+// ---------------------------------------------------------------------------
+
+export type DecisionMode = "INVESTIGATE" | "AUTHORIZE_ACTION";
+export type InvestigationVerdict = "SUPPORTED" | "DISPUTED" | "INCONCLUSIVE";
+
+export interface DecisionSource {
+  type: "TEXT" | "URL" | "ONCHAIN_REFERENCE";
+  value: string;
+  label?: string;
+}
+
+export interface InvestigationInput {
+  mode: "INVESTIGATE";
+  question: string;
+  sources?: DecisionSource[];
+  context?: string;
+}
+
 export interface ProposedAction {
   id: string;
   type: "SUPPLIER_PAYMENT_AUTHORIZATION";
@@ -209,3 +229,58 @@ export interface LiveDecisionRunResult {
   }>;
 }
 
+// ---------------------------------------------------------------------------
+// Investigation run result (POST /v1/investigations/run)
+// ---------------------------------------------------------------------------
+
+export interface InvestigationDecision {
+  verdict: InvestigationVerdict;
+  reasons: string[];
+  satisfiedRequirements: string[];
+  unsatisfiedRequirements: string[];
+  disputedRequirements: string[];
+}
+
+export interface InvestigationRunResult {
+  runId: string;
+  timestamp: string;
+  mode: "INVESTIGATE";
+  question: string;
+  investigationPlan: {
+    userQuestion: string;
+    requirements: Array<{
+      id?: string;
+      question?: string;
+      whyItMatters?: string;
+      intent: string;
+      mandatory: boolean;
+      minimumQuality: string;
+      reasonCode: string;
+      condition: string;
+    }>;
+    unsupportedAspects: string[];
+    urlTarget?: string;
+    txHashTarget?: string;
+  };
+  evidenceQuestions: EvidenceQuestionTrace[];
+  acquiredIntelligence: AcquiredIntelligence[];
+  evidenceAssessments: EvidenceAssessment[];
+  investigationDecision: InvestigationDecision;
+  verdict: InvestigationVerdict;
+  verdictLabel: string;
+  verdictSupport: string;
+  decisionPacket: { version: 1; decisionId: string; userQuestion?: string; proposedAction: ProposedAction; evidenceAssessments: EvidenceAssessment[]; actionDecision: ActionDecision };
+  decisionReplay: DecisionReplay;
+  paidCallCount: number;
+  totalSettledMicroUsdc: number;
+  settlementProvenance: Array<{
+    runId: string;
+    logicalCallId: string;
+    intent: string;
+    minerId: string;
+    minerName: string;
+    settledMicroUsdc: number;
+    settlementMetadata: unknown;
+  }>;
+  unsupportedAspects: string[];
+}
