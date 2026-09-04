@@ -328,15 +328,29 @@ h1 em {
 
 .pipeline-grid {
   display: grid;
-  grid-template-columns: 1fr auto 1fr auto 1fr auto 1fr auto 1fr;
-  align-items: center;
-  gap: 8px;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 12px;
+  align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .pipeline-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .pipeline-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .pipeline-step {
   background: var(--panel);
   border: 1px solid var(--line);
   padding: 20px 16px;
+  display: flex;
+  flex-direction: column;
   height: 100%;
 }
 
@@ -369,12 +383,27 @@ h1 em {
   line-height: 1.4;
 }
 
-.pipeline-arrow {
-  color: var(--mint);
-  font-weight: 900;
-  font-size: 1.2rem;
-  text-align: center;
+.dual-outcome-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
 }
+
+.outcome-group small {
+  font: 700 0.58rem ui-monospace, monospace;
+  color: var(--mint);
+  display: block;
+  letter-spacing: 0.05em;
+  margin-bottom: 2px;
+}
+
+.outcome-group span {
+  font: 700 0.65rem ui-monospace, monospace;
+  color: var(--text);
+  letter-spacing: 0.02em;
+}
+
 
 /* Contradiction Section */
 .contradiction-card {
@@ -2042,4 +2071,29 @@ footer {
   .mode-tab { min-width: 0; }
   .investigate-inputs { gap: 1rem; }
 }
+
+.workspace-sub-explanation {
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: -12px 0 24px;
+  line-height: 1.5;
+}
+
+.inv-context-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  border-radius: 8px;
+}
+
+.inv-section-title {
+  font: 700 0.65rem ui-monospace, monospace;
+  color: var(--mint);
+  letter-spacing: 0.1em;
+  margin: 0;
+}
+
 
