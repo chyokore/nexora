@@ -13,6 +13,7 @@ import type { InvestigationInput, DecisionSource } from "./types.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
+// Deployed production routes including health, discovery, evaluation, replay, agent run, and investigations
 const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify", "/v1/agent/run", "/v1/investigations/run"]);
 /** Shared in-process guard — stats reset on server restart. */
 const liveGuard = new LiveDecisionGuard();
