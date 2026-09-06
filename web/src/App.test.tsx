@@ -415,61 +415,7 @@ describe("judge-facing experience", () => {
     expect(screen.getByRole("button", { name: /Analyze with Nexora/ })).toBeVisible();
   });
 
-  it("renders Copy Decision Receipt Link ONLY when receiptId exists", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockImplementation(async (url: string) => {
-        if (String(url).includes("/v1/discovery")) return { ok: true, json: async () => mockDiscovery };
-        if (String(url).includes("/v1/investigations/run")) {
-          return {
-            ok: true,
-            status: 200,
-            json: async () => ({
-              runId: "run:test-inv",
-              question: "Is this supplier safe?",
-              mode: "INVESTIGATE",
-              verdict: "SUPPORTED",
-              verdictLabel: "Evidence supports the claim",
-              verdictSupport: "All requirements met",
-              investigationPlan: { userQuestion: "Is this supplier safe?", requirements: [] },
-              evidenceQuestions: [],
-              acquiredIntelligence: [],
-              evidenceAssessments: [],
-              unsupportedAspects: [],
-              settlementProvenance: [],
-              totalSettledMicroUsdc: 0,
-              paidCallCount: 0,
-              receiptId: "f952fc6930a0d0c04bc83f3f0c2d631f598c72260fd7066fdf8b02fcc295c3f9",
-              decisionReplay: {
-                replayId: "sha256:test",
-                decisionId: "decision:test",
-                fingerprint: "abc123fingerprint",
-                validation: { status: "VERIFIED", matches: true },
-                timeline: [],
-              },
-            }),
-          };
-        }
-        const res = apiResult("ALLOW");
-        (res as any).receiptId = "f952fc6930a0d0c04bc83f3f0c2d631f598c72260fd7066fdf8b02fcc295c3f9";
-        return { ok: true, status: 200, json: async () => res };
-      })
-    );
-
-    render(<App />);
-    const input = document.getElementById("inv-question")!;
-    fireEvent.change(input, { target: { value: "Is this supplier safe?" } });
-    fireEvent.click(screen.getByRole("button", { name: /Analyze with Nexora/i }));
-
-    await waitFor(() => {
-      expect(screen.getAllByText("SUPPORTED").length).toBeGreaterThan(0);
-    });
-
-    fireEvent.click(screen.getByRole("button", { name: /View Decision Replay & Audit Proof/i }));
-    expect(screen.getByRole("button", { name: /Copy Decision Receipt Link/i })).toBeInTheDocument();
-  });
-
-  it("does NOT render Copy Decision Receipt Link when receiptId is absent, showing unavailable notice instead", async () => {
+  it("does NOT render Copy Decision Receipt Link or receipt unavailable notice in Decision Replay", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn().mockImplementation(async (url: string) => {
@@ -504,7 +450,6 @@ describe("judge-facing experience", () => {
           };
         }
         const res = apiResult("ALLOW");
-        delete (res as any).receiptId;
         return { ok: true, status: 200, json: async () => res };
       })
     );
@@ -520,7 +465,8 @@ describe("judge-facing experience", () => {
 
     fireEvent.click(screen.getByRole("button", { name: /View Decision Replay & Audit Proof/i }));
     expect(screen.queryByRole("button", { name: /Copy Decision Receipt Link/i })).not.toBeInTheDocument();
-    expect(screen.getByText("Decision Receipt unavailable")).toBeInTheDocument();
+    expect(screen.queryByText("Decision Receipt unavailable")).not.toBeInTheDocument();
+    expect(screen.getByText("abc123fingerprint")).toBeInTheDocument();
     expect(screen.getByText("EVERY DECISION LEAVES A TRAIL")).toBeInTheDocument();
   });
 });
