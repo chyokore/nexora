@@ -164,12 +164,25 @@ function investigationInput(value: unknown): InvestigationInput {
   return result;
 }
 
+const RECEIPT_PATH_PATTERN = /^\/v1\/receipts\/([a-f0-9]{64})$/;
+
 async function handle(request: IncomingMessage, response: ServerResponse, allowedOrigins: ReadonlySet<string>): Promise<void> {
   const path = new URL(request.url ?? "/", "http://localhost").pathname;
-  if (!routes.has(path)) { sendError(response, 404, "NOT_FOUND", "Route not found"); return; }
+  const receiptMatch = RECEIPT_PATH_PATTERN.exec(path);
+  const isReceiptRoute = Boolean(receiptMatch);
+  const isReceiptPrefix = path.startsWith("/v1/receipts/");
+
+  if (isReceiptPrefix && !isReceiptRoute) {
+    if (!applyCors(request, response, allowedOrigins)) return;
+    if (request.method === "OPTIONS") { response.writeHead(204, { "cache-control": "no-store" }); response.end(); return; }
+    sendError(response, 400, "INVALID_RECEIPT_ID", "Receipt ID must be a 64-character hexadecimal string", ["receipt_id:must_be_64_hex_chars"]);
+    return;
+  }
+
+  if (!routes.has(path) && !isReceiptRoute) { sendError(response, 404, "NOT_FOUND", "Route not found"); return; }
   if (!applyCors(request, response, allowedOrigins)) return;
   if (request.method === "OPTIONS") { response.writeHead(204, { "cache-control": "no-store" }); response.end(); return; }
-  const requiredMethod = (path === "/health" || path === "/v1/discovery") ? "GET" : "POST";
+  const requiredMethod = (path === "/health" || path === "/v1/discovery" || isReceiptRoute) ? "GET" : "POST";
   if (request.method !== requiredMethod) { response.setHeader("allow", requiredMethod); sendError(response, 405, "METHOD_NOT_ALLOWED", `Use ${requiredMethod} for this route`); return; }
   if (path === "/health") {
     const signerStatus = inspectSignerConfig(process.env);
@@ -181,8 +194,26 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
         enabled: liveGuard.isEnabled(),
         ...signerStatus,
       },
+      receiptPersistence: {
+        configured: isReceiptStorageConfigured(process.env),
+      },
     });
     return;
+  }
+  if (isReceiptRoute && receiptMatch && receiptMatch[1]) {
+    const receiptId = receiptMatch[1];
+    try {
+      const receipt = await getReceipt(receiptId);
+      if (!receipt) {
+        sendError(response, 404, "RECEIPT_NOT_FOUND", "Decision receipt not found", ["receipt:not_found"]);
+        return;
+      }
+      sendJson(response, 200, sanitizeReplayValue(receipt));
+      return;
+    } catch {
+      sendError(response, 503, "STORAGE_UNAVAILABLE", "Receipt storage is temporarily unavailable");
+      return;
+    }
   }
   if (path === "/v1/discovery") {
     const nodeUrl = process.env.TELEGRAPH_NODE_URL ?? "http://13.237.89.59:7044";
@@ -241,7 +272,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
     }
     liveGuard.endRun(result.actionDecision.decision, result.totalSettledMicroUsdc, result.paidCallCount);
     const receiptInfo = await saveReceipt(result.decisionPacket);
-    const finalResult = receiptInfo ? { ...result, receiptId: receiptInfo.receiptId } : result;
+    const finalResult = receiptInfo?.persisted ? { ...result, receiptId: receiptInfo.receiptId } : result;
     sendJson(response, 200, sanitizeReplayValue(finalResult));
     return;
   }
@@ -285,7 +316,7 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
     }
     liveGuard.endRun("REVIEW", invResult.totalSettledMicroUsdc, invResult.paidCallCount);
     const invReceiptInfo = await saveReceipt(invResult.decisionPacket);
-    const finalInvResult = invReceiptInfo ? { ...invResult, receiptId: invReceiptInfo.receiptId } : invResult;
+    const finalInvResult = invReceiptInfo?.persisted ? { ...invResult, receiptId: invReceiptInfo.receiptId } : invResult;
     sendJson(response, 200, sanitizeReplayValue(finalInvResult));
     return;
   }

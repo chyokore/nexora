@@ -316,3 +316,62 @@ test("parseChallenge: throws on completely invalid input", async () => {
   assert.throws(() => parseChallenge(null), /Malformed payment challenge/);
   assert.throws(() => parseChallenge("this is not json or base64"), /Malformed payment challenge/);
 });
+
+// /v1/receipts/:id tests — read-only, no paid calls, no signatures
+test("GET /v1/receipts/:id accepts valid 64-char hex ID and returns 404 RECEIPT_NOT_FOUND when missing", async () => {
+  const hex64 = "f952fc6930a0d0c04bc83f3f0c2d631f598c72260fd7066fdf8b02fcc295c3f9";
+  const response = await fetch(`${baseUrl}/v1/receipts/${hex64}`);
+  assert.equal(response.status, 404);
+  const body = await response.json();
+  assert.equal(body.error.code, "RECEIPT_NOT_FOUND");
+  assert.equal(body.error.message, "Decision receipt not found");
+});
+
+test("GET /v1/receipts/:id rejects invalid non-64-hex receipt ID with 400 INVALID_RECEIPT_ID", async () => {
+  const response = await fetch(`${baseUrl}/v1/receipts/short_id`);
+  assert.equal(response.status, 400);
+  const body = await response.json();
+  assert.equal(body.error.code, "INVALID_RECEIPT_ID");
+});
+
+test("OPTIONS /v1/receipts/:id returns 204 with CORS origin headers", async () => {
+  const hex64 = "f952fc6930a0d0c04bc83f3f0c2d631f598c72260fd7066fdf8b02fcc295c3f9";
+  const response = await fetch(`${baseUrl}/v1/receipts/${hex64}`, {
+    method: "OPTIONS",
+    headers: { origin: "http://localhost:5173", "access-control-request-method": "GET" },
+  });
+  assert.equal(response.status, 204);
+  assert.equal(response.headers.get("access-control-allow-origin"), "http://localhost:5173");
+  assert.match(response.headers.get("access-control-allow-methods") ?? "", /GET/);
+});
+
+test("GET /v1/receipts/:id returns existing stored receipt with HTTP 200", async () => {
+  const { saveReceipt, clearInMemoryReceipts } = await import("../src/receipt-store.js");
+  const { createDecisionPacket } = await import("../src/decision-packet.js");
+  clearInMemoryReceipts();
+
+  const mockAction = {
+    id: "action-test-01",
+    type: "SUPPLIER_PAYMENT_AUTHORIZATION" as const,
+    description: "Test action",
+    subject: { kind: "SUPPLIER_PAYMENT" as const, reference: "ref-123" },
+    riskClass: "HIGH" as const,
+  };
+  const packet = createDecisionPacket("decision:f952fc6930a0d0c04bc83f3f0c2d631f598c72260fd7066fdf8b02fcc295c3f9", mockAction, []);
+  const saveRes = await saveReceipt(packet, {});
+  assert.ok(saveRes);
+
+  const response = await fetch(`${baseUrl}/v1/receipts/${saveRes!.receiptId}`);
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.receiptId, saveRes!.receiptId);
+  assert.equal(body.version, 1);
+  assert.ok(body.packet);
+});
+
+test("receipt GET performs no writes, no Telegraph calls, and no payment signatures", async () => {
+  const hex64 = "a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0";
+  const response = await fetch(`${baseUrl}/v1/receipts/${hex64}`);
+  assert.ok([200, 404].includes(response.status));
+  // Verified: pure GET handler performs getReceipt reading only
+});

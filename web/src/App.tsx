@@ -672,16 +672,20 @@ export default function App() {
                       <div className="replay-meta">
                         <div><small>Run ID</small><code>{invResult.runId}</code></div>
                         <div><small>SHA-256 Fingerprint</small><code>{invResult.decisionReplay.fingerprint}</code></div>
-                        {(invResult.receiptId || invResult.decisionReplay?.fingerprint) && (
+                        {invResult.receiptId ? (
                           <div style={{ width: "100%", marginTop: "0.5rem" }}>
                             <button
                               type="button"
                               className="btn-example"
                               style={{ fontWeight: 600, background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }}
-                              onClick={() => copyReceiptLink(invResult.receiptId ?? invResult.decisionReplay.fingerprint)}
+                              onClick={() => copyReceiptLink(invResult.receiptId!)}
                             >
-                              {copiedReceiptId === (invResult.receiptId ?? invResult.decisionReplay.fingerprint) ? "✓ Copied Receipt Link!" : "Copy Decision Receipt Link ↗"}
+                              {copiedReceiptId === invResult.receiptId ? "✓ Copied Receipt Link!" : "Copy Decision Receipt Link ↗"}
                             </button>
+                          </div>
+                        ) : (
+                          <div style={{ width: "100%", marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+                            <small>Decision Receipt unavailable</small>
                           </div>
                         )}
                       </div>
@@ -1040,16 +1044,20 @@ export default function App() {
                         <div><small>Recorded / Recomputed</small>
                           <code>{liveResult.decisionReplay.validation.recordedDecision} / {liveResult.decisionReplay.validation.recomputedDecision}</code>
                         </div>
-                        {(liveResult.receiptId || liveResult.decisionReplay?.fingerprint) && (
+                        {liveResult.receiptId ? (
                           <div style={{ width: "100%", marginTop: "0.5rem" }}>
                             <button
                               type="button"
                               className="btn-example"
                               style={{ fontWeight: 600, background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }}
-                              onClick={() => copyReceiptLink(liveResult.receiptId ?? liveResult.decisionReplay.fingerprint)}
+                              onClick={() => copyReceiptLink(liveResult.receiptId!)}
                             >
-                              {copiedReceiptId === (liveResult.receiptId ?? liveResult.decisionReplay.fingerprint) ? "✓ Copied Receipt Link!" : "Copy Decision Receipt Link ↗"}
+                              {copiedReceiptId === liveResult.receiptId ? "✓ Copied Receipt Link!" : "Copy Decision Receipt Link ↗"}
                             </button>
+                          </div>
+                        ) : (
+                          <div style={{ width: "100%", marginTop: "0.5rem", fontSize: "0.8rem", color: "var(--muted)" }}>
+                            <small>Decision Receipt unavailable</small>
                           </div>
                         )}
                       </div>
