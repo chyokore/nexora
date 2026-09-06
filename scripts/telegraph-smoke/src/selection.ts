@@ -33,9 +33,30 @@ export function compatibleEndpoints(miner: Miner, intent: DiscoveryIntent): Endp
     .sort((left, right) => left.path.localeCompare(right.path) || left.method.localeCompare(right.method));
 }
 
+export function outputCapable(miner: Miner, intent: DiscoveryIntent): boolean {
+  const props = miner.output_schema?.properties;
+  if (!props || typeof props !== "object" || Array.isArray(props)) return false;
+
+  if (intent === "ONCHAIN_TX_LOOKUP") return Object.prototype.hasOwnProperty.call(props, "status");
+  if (intent === "FRAUD_DETECTION") return Object.prototype.hasOwnProperty.call(props, "label") || Object.prototype.hasOwnProperty.call(props, "verdict");
+  if (intent === "URL_SCAN") return Object.prototype.hasOwnProperty.call(props, "verdict") || Object.prototype.hasOwnProperty.call(props, "risk") || Object.prototype.hasOwnProperty.call(props, "safe");
+  if (intent === "FACT_CHECK" || intent === "NEWS_SEARCH") return Object.prototype.hasOwnProperty.call(props, "verdict");
+  return false;
+}
+
+export function checkMinerCapability(miner: Miner, intent: DiscoveryIntent): { capable: boolean; reason?: string } {
+  if (miner.activation_status !== "active") return { capable: false, reason: "MINER_NOT_ACTIVE" };
+  if (!miner.supported_intents.includes(intent)) return { capable: false, reason: "INTENT_NOT_SUPPORTED" };
+  if (!miner.input_schema) return { capable: false, reason: "MISSING_INPUT_SCHEMA" };
+  if (!miner.output_schema?.properties || typeof miner.output_schema.properties !== "object") return { capable: false, reason: "OUTPUT_SCHEMA_CANNOT_SATISFY_EVIDENCE_REQUIREMENT" };
+  if (!outputCapable(miner, intent)) return { capable: false, reason: "OUTPUT_SCHEMA_CANNOT_SATISFY_EVIDENCE_REQUIREMENT" };
+  return { capable: true };
+}
+
 export function compatible(miner: Miner, intent: DiscoveryIntent): boolean {
   if (miner.activation_status !== "active" || !Number.isInteger(miner.min_price_usdc) || miner.min_price_usdc <= 0) return false;
   if (!miner.input_schema || !miner.output_schema || !miner.supported_intents.includes(intent)) return false;
+  if (!outputCapable(miner, intent)) return false;
 
   if (intent === "FRAUD_DETECTION") return isStringProperty(miner, "query") && requiredSubset(miner, ["query"]);
   if (intent === "URL_SCAN") return isStringProperty(miner, "url") && requiredSubset(miner, ["url"]);
@@ -72,6 +93,6 @@ export function selectMiner(registry: unknown, intent: DiscoveryIntent): Selecti
 }
 
 export function selectionExplanation(selection: Selection, intent: DiscoveryIntent): string {
-  return `Selected because ${selection.miner.name} advertises ${intent} support and matched the Telegraph intent required for this evidence question (Rank #${selection.score.rank}).`;
+  return `Selected because ${selection.miner.name} advertises ${intent} support, possesses an output schema capable of satisfying ${intent} evidence requirements, and matched the Telegraph intent required for this evidence question (Rank #${selection.score.rank}).`;
 }
 

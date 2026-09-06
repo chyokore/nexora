@@ -14,10 +14,17 @@ import type { Intent, Miner, PaymentChallenge } from "../src/types.js";
 const ASSET = "0x1111111111111111111111111111111111111111";
 const PAYEE = "0x2222222222222222222222222222222222222222";
 const challenge = (overrides: Partial<PaymentChallenge> = {}): PaymentChallenge => ({ scheme: "exact", network: PAYMENT_POLICY.network, asset: ASSET, amount: 10_000, payTo: PAYEE, validUntil: Math.floor(Date.now() / 1000) + 300, x402Version: 2, ...overrides });
-const miner = (id: string, intent: Intent, rank: number, properties: string[], required: string[] = []): Miner => ({
+const defaultOutputProps: Record<Intent, Record<string, { type?: string | string[] }>> = {
+  FRAUD_DETECTION: { label: { type: "string" } },
+  URL_SCAN: { verdict: { type: "string" } },
+  ONCHAIN_TX_LOOKUP: { status: { type: "string" } },
+};
+
+const miner = (id: string, intent: Intent, rank: number, properties: string[], required: string[] = [], outputProps?: Record<string, { type?: string | string[] }>): Miner => ({
   id, name: `Miner ${id}`, activation_status: "active", min_price_usdc: 10_000, supported_intents: [intent],
   endpoints: [{ method: "GET", path: intent === "FRAUD_DETECTION" ? "/risk-check" : intent === "URL_SCAN" ? "/url-scan" : "/lookup", description: `${intent}. Test endpoint.` }],
-  input_schema: { properties: Object.fromEntries(properties.map((key) => [key, { type: "string" }])), required }, output_schema: { properties: {} },
+  input_schema: { properties: Object.fromEntries(properties.map((key) => [key, { type: "string" }])), required },
+  output_schema: { properties: outputProps ?? defaultOutputProps[intent] ?? {} },
   scores: [{ intent_id: intent, rank, score: 1 }],
 });
 const selection = (intent: Intent) => selectMiner([miner("49", intent, 1, intent === "FRAUD_DETECTION" ? ["query"] : intent === "URL_SCAN" ? ["url"] : ["tx_hash", "chain"], intent === "ONCHAIN_TX_LOOKUP" ? ["tx_hash"] : [])], intent);
