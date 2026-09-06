@@ -227,6 +227,7 @@ export interface LiveDecisionRunResult {
     settledMicroUsdc: number;
     settlementMetadata: unknown;
   }>;
+  receiptId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -283,4 +284,13 @@ export interface InvestigationRunResult {
     settlementMetadata: unknown;
   }>;
   unsupportedAspects: string[];
+  receiptId?: string;
+}
+
+export interface PersistedReceipt {
+  version: 1;
+  receiptId: string;
+  createdAt: string;
+  decisionFingerprint: string;
+  packet: any;
 }

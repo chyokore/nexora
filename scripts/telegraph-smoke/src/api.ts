@@ -10,10 +10,11 @@ import { LiveDecisionGuard } from "./live-guard.js";
 import { runReferenceAgent, requireExecutionEnvironment, inspectSignerConfig, type ReferenceAgentRunResult } from "./reference-agent.js";
 import { runInvestigation } from "./investigation-runner.js";
 import type { InvestigationInput, DecisionSource } from "./types.js";
+import { getReceipt, isReceiptStorageConfigured, saveReceipt, validateReceiptId } from "./receipt-store.js";
 
 const API_VERSION = "1";
 const MAX_BODY_BYTES = 65_536;
-// Deployed production routes including health, discovery, evaluation, replay, agent run, and investigations
+// Deployed production routes including health, discovery, evaluation, replay, agent run, investigations, and receipts
 const routes = new Set(["/health", "/v1/discovery", "/v1/decisions/evaluate", "/v1/replays/verify", "/v1/agent/run", "/v1/investigations/run"]);
 /** Shared in-process guard — stats reset on server restart. */
 const liveGuard = new LiveDecisionGuard();
@@ -239,7 +240,9 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
       return;
     }
     liveGuard.endRun(result.actionDecision.decision, result.totalSettledMicroUsdc, result.paidCallCount);
-    sendJson(response, 200, sanitizeReplayValue(result));
+    const receiptInfo = await saveReceipt(result.decisionPacket);
+    const finalResult = receiptInfo ? { ...result, receiptId: receiptInfo.receiptId } : result;
+    sendJson(response, 200, sanitizeReplayValue(finalResult));
     return;
   }
 
@@ -281,7 +284,9 @@ async function handle(request: IncomingMessage, response: ServerResponse, allowe
       return;
     }
     liveGuard.endRun("REVIEW", invResult.totalSettledMicroUsdc, invResult.paidCallCount);
-    sendJson(response, 200, sanitizeReplayValue(invResult));
+    const invReceiptInfo = await saveReceipt(invResult.decisionPacket);
+    const finalInvResult = invReceiptInfo ? { ...invResult, receiptId: invReceiptInfo.receiptId } : invResult;
+    sendJson(response, 200, sanitizeReplayValue(finalInvResult));
     return;
   }
 

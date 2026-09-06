@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchDiscovery, runInvestigation, runLiveDecision } from "./api";
-import type { DecisionMode, DiscoveryResponse, InvestigationRunResult, LiveDecisionRunResult, ProposedAction } from "./contracts";
+import { fetchDiscovery, fetchReceipt, runInvestigation, runLiveDecision } from "./api";
+import type { DecisionMode, DiscoveryResponse, InvestigationRunResult, LiveDecisionRunResult, PersistedReceipt, ProposedAction } from "./contracts";
 
 const readable = (value: string) =>
   value
@@ -44,6 +44,12 @@ export default function App() {
   const [discoveryLoading, setDiscoveryLoading] = useState(false);
   const [discoveryError, setDiscoveryError] = useState("");
 
+  // Receipt State
+  const [receiptLoading, setReceiptLoading] = useState(false);
+  const [receiptError, setReceiptError] = useState("");
+  const [receiptData, setReceiptData] = useState<PersistedReceipt | null>(null);
+  const [copiedReceiptId, setCopiedReceiptId] = useState("");
+
   // Live Decision State (Authorize Action Mode)
   const [liveResult, setLiveResult] = useState<LiveDecisionRunResult | null>(null);
   const [liveLoading, setLiveLoading] = useState(false);
@@ -60,6 +66,14 @@ export default function App() {
   const [invLoading, setInvLoading] = useState(false);
   const [invError, setInvError] = useState("");
   const [showInvReplay, setShowInvReplay] = useState(false);
+
+  function copyReceiptLink(receiptId: string) {
+    const link = `${window.location.origin}${window.location.pathname}#receipt=${receiptId}`;
+    navigator.clipboard.writeText(link).then(() => {
+      setCopiedReceiptId(receiptId);
+      setTimeout(() => setCopiedReceiptId(""), 3000);
+    }).catch(() => {});
+  }
 
   async function loadDiscovery() {
     setDiscoveryLoading(true);
@@ -177,6 +191,24 @@ export default function App() {
 
   useEffect(() => {
     loadDiscovery();
+    const hash = window.location.hash;
+    const path = window.location.pathname;
+    const match = hash.match(/^#receipt=([a-zA-Z0-9_-]+)/) || path.match(/^\/replay\/([a-zA-Z0-9_-]+)/);
+    if (match && match[1]) {
+      const receiptId = match[1];
+      setReceiptLoading(true);
+      setReceiptError("");
+      fetchReceipt(receiptId)
+        .then((rec) => {
+          setReceiptData(rec);
+        })
+        .catch((err) => {
+          setReceiptError(err instanceof Error ? err.message : "Receipt unavailable");
+        })
+        .finally(() => {
+          setReceiptLoading(false);
+        });
+    }
   }, []);
 
   return (
@@ -262,6 +294,72 @@ export default function App() {
         <p className="workspace-sub-explanation">
           Use Investigate to examine a claim or reference. Use Authorize Action when an autonomous agent needs evidence before proceeding.
         </p>
+
+        {receiptLoading && (
+          <div className="live-error" style={{ background: "color-mix(in srgb, var(--accent) 10%, var(--surface))", borderColor: "var(--accent)", color: "var(--text)", margin: "1.5rem 0" }}>
+            <strong>Retrieving Decision Receipt&hellip;</strong>
+            <span>Fetching persistent receipt metadata and deterministic proof.</span>
+          </div>
+        )}
+
+        {receiptError && (
+          <div className="live-error" role="alert" style={{ margin: "1.5rem 0" }}>
+            <strong>Decision Receipt Unavailable</strong>
+            <span>{receiptError}</span>
+          </div>
+        )}
+
+        {receiptData && (
+          <div className="live-result" id="receipt-view" style={{ margin: "1.5rem 0", border: "2px solid var(--accent)", borderRadius: "10px", padding: "1.25rem" }}>
+            <div className="live-step">
+              <p className="eyebrow">PUBLIC DECISION RECEIPT · IMMUTABLE VERIFICATION PROOF</p>
+              <h3>Cross-Device Verifiable Decision Receipt</h3>
+              <p style={{ fontSize: "0.85rem", color: "var(--muted)", margin: "0.4rem 0" }}>
+                Anyone with this link can view and verify this Decision Receipt.
+              </p>
+              <div className="replay-meta" style={{ marginTop: "0.75rem" }}>
+                <div><small>Receipt ID</small><code>{receiptData.receiptId}</code></div>
+                <div><small>Created At</small><code>{new Date(receiptData.createdAt).toLocaleString()}</code></div>
+                <div><small>SHA-256 Fingerprint</small><code>{receiptData.decisionFingerprint}</code></div>
+              </div>
+            </div>
+
+            {receiptData.packet?.userQuestion && (
+              <div className="live-step">
+                <p className="eyebrow">01 · QUESTION / CLAIM</p>
+                <div className="question-display-box">
+                  <p className="main-user-question">&ldquo;{receiptData.packet.userQuestion}&rdquo;</p>
+                </div>
+              </div>
+            )}
+
+            {receiptData.packet?.proposedAction && (
+              <div className="live-step">
+                <p className="eyebrow">PROPOSED ACTION</p>
+                <div className="proposal-card">
+                  <div className="proposal-row"><span>Type</span><strong>{receiptData.packet.proposedAction.type}</strong></div>
+                  <div className="proposal-row"><span>Description</span><strong>{receiptData.packet.proposedAction.description}</strong></div>
+                  <div className="proposal-row"><span>Reference</span><code>{receiptData.packet.proposedAction.subject?.reference}</code></div>
+                </div>
+              </div>
+            )}
+
+            {receiptData.packet?.actionDecision && (
+              <div className={`live-decision-banner ${receiptData.packet.actionDecision.decision.toLowerCase()}`}>
+                <div className="live-step">
+                  <p className="eyebrow">02 · RECORDED DECISION</p>
+                  <h3 className="decision-value">{receiptData.packet.actionDecision.decision}</h3>
+                  <p className="decision-explanation">
+                    {formatDecisionExplanation(
+                      receiptData.packet.actionDecision.decision,
+                      receiptData.packet.actionDecision.reasons
+                    )}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Mode Selector Tabs */}
         <div className="workspace-mode-tabs" role="tablist" aria-label="Decision mode">
@@ -574,6 +672,18 @@ export default function App() {
                       <div className="replay-meta">
                         <div><small>Run ID</small><code>{invResult.runId}</code></div>
                         <div><small>SHA-256 Fingerprint</small><code>{invResult.decisionReplay.fingerprint}</code></div>
+                        {(invResult.receiptId || invResult.decisionReplay?.fingerprint) && (
+                          <div style={{ width: "100%", marginTop: "0.5rem" }}>
+                            <button
+                              type="button"
+                              className="btn-example"
+                              style={{ fontWeight: 600, background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }}
+                              onClick={() => copyReceiptLink(invResult.receiptId ?? invResult.decisionReplay.fingerprint)}
+                            >
+                              {copiedReceiptId === (invResult.receiptId ?? invResult.decisionReplay.fingerprint) ? "✓ Copied Receipt Link!" : "Copy Decision Receipt Link ↗"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="timeline-wrap">
                         <h4>Replay Timeline</h4>
@@ -930,6 +1040,18 @@ export default function App() {
                         <div><small>Recorded / Recomputed</small>
                           <code>{liveResult.decisionReplay.validation.recordedDecision} / {liveResult.decisionReplay.validation.recomputedDecision}</code>
                         </div>
+                        {(liveResult.receiptId || liveResult.decisionReplay?.fingerprint) && (
+                          <div style={{ width: "100%", marginTop: "0.5rem" }}>
+                            <button
+                              type="button"
+                              className="btn-example"
+                              style={{ fontWeight: 600, background: "var(--accent)", color: "#fff", borderColor: "var(--accent)" }}
+                              onClick={() => copyReceiptLink(liveResult.receiptId ?? liveResult.decisionReplay.fingerprint)}
+                            >
+                              {copiedReceiptId === (liveResult.receiptId ?? liveResult.decisionReplay.fingerprint) ? "✓ Copied Receipt Link!" : "Copy Decision Receipt Link ↗"}
+                            </button>
+                          </div>
+                        )}
                       </div>
                       <div className="timeline-wrap">
                         <h4>Replay Timeline</h4>

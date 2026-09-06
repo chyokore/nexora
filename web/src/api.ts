@@ -89,3 +89,21 @@ export async function runInvestigation(input: InvestigationInput): Promise<Inves
   }
   return body as InvestigationRunResult;
 }
+
+export async function fetchReceipt(receiptId: string): Promise<any> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiBase}/v1/receipts/${encodeURIComponent(receiptId)}`);
+  } catch {
+    throw new Error("Nexora could not reach the decision API to retrieve the receipt.");
+  }
+  const body = await response.json().catch(() => null) as any;
+  if (!response.ok) {
+    if (response.status === 404) throw new Error("Decision receipt not found or expired.");
+    throw new Error(body && "error" in body && body.error?.message ? body.error.message : `Receipt retrieval failed (${response.status})`);
+  }
+  if (!body || typeof body !== "object" || !("packet" in body) || !("receiptId" in body)) {
+    throw new Error("The Decision Receipt API returned a malformed response");
+  }
+  return body;
+}
