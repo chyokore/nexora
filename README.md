@@ -2,7 +2,7 @@
 
 Verify Intelligence. Bound Action.
 
-> **"Intelligence is not a decision. Nexora determines what evidence an autonomous agent needs, finds Telegraph miners capable of providing it, evaluates the returned intelligence, and produces a bounded conclusion through deterministic policy."**
+> **"Intelligence is not a decision. Nexora works out what evidence an autonomous agent needs before it acts. It finds Telegraph miners that can provide that evidence, checks what comes back, and applies deterministic rules to decide what happens next."**
 
 - **Public Web App:** [https://nexora-seven-lemon.vercel.app](https://nexora-seven-lemon.vercel.app)
 - **Production API:** [https://nexora-api-3efi.onrender.com](https://nexora-api-3efi.onrender.com)
@@ -22,18 +22,18 @@ While intelligence networks like Telegraph Protocol supply specialized, multi-mi
 - Unrelated confidence scores cannot be averaged into one artificial trust number.
 - Missing or unresolved evidence must never be silently assumed safe to proceed.
 
-Nexora acts as the evidence-driven decision control layer between raw intelligence providers and autonomous agent execution.
+Nexora acts as the decision guardrail between raw intelligence providers and autonomous agent execution.
 
 ---
 
 ## What Nexora Does
 
-1. **Generates Explicit Evidence Requirements:** Takes a user question or agent action proposal and deterministically determines what evidence questions must be answered and why each matters.
-2. **Filters for Capability Before Payment:** Evaluates candidate Telegraph miners to verify their declared output contract can structurally satisfy the evidence requirement before spending USDC.
+1. **Generates Explicit Evidence Requirements:** Takes a question or proposed action, breaks it into explicit evidence requirements, and explains why each one matters.
+2. **Filters for Capability Before Payment:** Checks candidate Telegraph miners to verify their output can satisfy the evidence requirement before spending USDC.
 3. **Preserves Telegraph Ranking:** Selects the highest-ranked capable miner and acquires real intelligence using x402 on Base Sepolia.
-4. **Evaluates Evidence Quality & Conflict:** Checks structural validity, coverage, uncertainty, and cross-source contradictions without confidence score averaging.
-5. **Enforces Bounded Policy:** Evaluates deterministic policy rules to return explicit, bounded conclusions.
-6. **Produces Deterministic Decision Replay:** Emits an immutable SHA-256 decision fingerprint and audit trace so any decision can be independently replayed and validated.
+4. **Evaluates Evidence Quality & Conflict:** Checks structural validity, coverage, missing items, and cross-source contradictions without confidence score averaging.
+5. **Enforces Bounded Policy:** Applies explicit deterministic policy rules to return a clear conclusion.
+6. **Produces Deterministic Decision Replay:** Emits an immutable SHA-256 decision fingerprint and audit trace so any decision can be independently replayed.
 
 ---
 
@@ -88,10 +88,11 @@ Nexora supports two complementary operating modes within the Decision Workspace:
 A primary differentiator in Nexora is the **Pre-Payment Evidence Capability Gate**.
 
 ### The Principle
-A Telegraph miner can be compatible with an intent (e.g. `ONCHAIN_TX_LOOKUP`) while lacking the specific output contract fields required by downstream decision policy. Paying such a miner produces intelligence that cannot satisfy the evidence policy, resulting in avoidable spend.
+A miner can support the right intent and still return the wrong shape of evidence for a particular decision.
 
-### How It Works
-Before initiating an x402 payment, Nexora inspects the candidate miner's declared output schema contract to verify it contains the structural fields necessary to satisfy the requirement:
+Nexora learned this during production testing. An onchain lookup selected a rank #1 provider by intent, but returned intelligence that did not include the transaction evidence the policy needed, leaving the investigation INCONCLUSIVE despite a successful payment.
+
+The Evidence Capability Gate prevents that avoidable spend. Before initiating an x402 payment, Nexora inspects the candidate miner's declared output contract to verify it contains the structural fields necessary to satisfy the requirement:
 - Only miners with matching declared output capability remain eligible.
 - Telegraph ranking is strictly preserved among capable miners.
 - Nexora **does not** replace or override Telegraph ranking; it filters the candidate set for structural capability first.
@@ -100,17 +101,17 @@ Before initiating an x402 payment, Nexora inspects the candidate miner's declare
 
 ## Production Findings & Case Studies
 
-### 1. The Contradiction Case: High Confidence ≠ Correct Evidence
+### 1. The Contradiction Case: When 100% Confidence Is Wrong
 - **Scenario:** During live Telegraph testing, TxLens miner `9002` was queried for an on-chain transaction.
 - **Provider Result:** Reported `status: not_found` with `100% confidence (1.0)`.
 - **On-Chain Reality:** Independent verification against Base Sepolia proved transaction `0xcd9a...` independently existed in block `46,306,603`.
-- **Nexora Action:** Nexora preserved the miner's reported finding and confidence in its evidence assessment rather than allowing the 100% confidence score to override contradictory evidence. Nexora classified the evidence as `CONTRADICTED` and safely routed the decision to `REVIEW`.
+- **Nexora Action:** Nexora did not let the 100% confidence score settle the question. It marked the evidence as `CONTRADICTED` and safely routed the decision to `REVIEW`.
 - **Core Lesson:** High confidence is not verified truth.
 
 ### 2. Production Learning: Capability Before Payment
-- **Scenario:** In earlier production runs, an `ONCHAIN_TX_LOOKUP` query selected ChainSight based on intent compatibility and rank #1.
+- **Scenario:** During early production testing, an `ONCHAIN_TX_LOOKUP` query selected ChainSight for an onchain lookup.
 - **Finding:** ChainSight's returned payload structure did not contain the transaction inclusion fields required by Nexora's canonical transaction evidence policy, resulting in `LIMITED` quality and an `INCONCLUSIVE` verdict despite successful payment.
-- **Resolution:** Nexora introduced the pre-payment Evidence Capability Gate to verify declared output capability before payment.
+- **Resolution:** We built the Evidence Capability Gate to inspect candidate miner output schemas before initiating payment. Among capable miners, Telegraph ranking is strictly preserved.
 - **Controlled Run Result:** In a subsequent production run, the capability gate selected `TxLens` (miner `9002`), which successfully provided `USABLE` evidence, `SUFFICIENT` coverage, and a `SUPPORTED` conclusion across 1 paid call (0.0100 USDC).
 
 ---
@@ -134,16 +135,16 @@ Nexora operates against real Telegraph Protocol miners on Base Sepolia (`eip155:
 Decision Replay provides auditability for every Nexora decision:
 - Generates a unique SHA-256 fingerprint from the canonical decision packet.
 - Reconstructs an 8-event deterministic timeline from action proposal to final verdict.
-- Recomputes the decision state against recorded evidence to verify `VERIFIED MATCH`.
+- Recomputes the decision state against recorded evidence to confirm `VERIFIED MATCH`.
 
-*Note: `VERIFIED MATCH` proves deterministic decision integrity (the same recorded inputs and policy reproduce the exact same decision). It does not imply that every external-world statement is objectively true.*
+*Note: Decision Replay checks deterministic integrity (feeding the same recorded evidence to the same policy reproduces the exact same decision). `VERIFIED MATCH` means the recorded and recomputed decisions agree; it does not prove that every external fact is true.*
 
 ---
 
 ## Three Core Principles
 
 1. **INTELLIGENCE IS NOT A DECISION:** A high-confidence answer can still be incomplete, contradicted, or unsuitable for an action.
-2. **CAPABILITY BEFORE PAYMENT:** Nexora checks whether a miner's declared contract satisfies required evidence before USDC is spent, while preserving Telegraph ranking among capable providers.
+2. **CAPABILITY BEFORE PAYMENT:** Nexora checks whether a miner can provide the evidence the decision actually needs before paying it, while preserving Telegraph ranking among capable providers.
 3. **UNCERTAINTY BOUNDS ACTION:** Missing, insufficient, or contradicted required evidence cannot silently become authorization.
 
 ---
@@ -154,7 +155,7 @@ Decision Replay provides auditability for every Nexora decision:
 - **Bounded Spend:** Maximum 0.03 USDC per run across a maximum of 3 logical paid calls.
 - **Server-Side Execution:** Payment signatures are executed server-side; public users cannot specify arbitrary payees, networks, or contract targets.
 - **Concurrency & Cooldown:** Bounded concurrency and rate-limiting prevent duplicate authorization runs.
-- **Fail-Safe Routing:** Any provider, network, or verification failure routes safely toward `REVIEW`.
+- **Fail-Safe Routing:** If required evidence is missing, a provider fails, or the result cannot meet the policy threshold, Nexora does not guess. The action goes to `REVIEW`.
 - **Blast Radius:** The in-process spend guard state resets upon server process restarts; the durable financial blast radius is bounded by the server's burner wallet balance.
 
 ---

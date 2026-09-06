@@ -204,7 +204,7 @@ describe("judge-facing experience", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: /How Nexora Turns Questions into Bounded Decisions/ })).toBeVisible();
     expect(screen.getByRole("heading", { name: /The Contradiction Case/ })).toBeVisible();
-    expect(screen.getByText(/High Confidence ≠ Correct Evidence/)).toBeVisible();
+    expect(screen.getByText(/When 100% Confidence Is Wrong/)).toBeVisible();
   });
 
   it("renders live discovery inspector data when connected", async () => {

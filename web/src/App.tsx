@@ -208,7 +208,7 @@ export default function App() {
           <p className="lede">
             <strong>Intelligence is not a decision.</strong>
             <br />
-            <strong>Nexora determines what evidence an autonomous agent needs, finds Telegraph miners capable of providing it, evaluates the returned intelligence, and produces a bounded conclusion through deterministic policy.</strong>
+            <strong>Nexora starts with a simple question: what does an agent actually need to know before it acts? It works out what evidence matters, finds Telegraph miners that can provide it, checks what comes back, and applies clear rules before the agent can move forward.</strong>
           </p>
           <div className="value-pillars">
             <div className="pillar">
@@ -556,7 +556,7 @@ export default function App() {
                 <div className="live-step">
                   <div className="replay-trail-callout">
                     <strong>EVERY DECISION LEAVES A TRAIL</strong>
-                    <p>Decision Replay verifies deterministic decision integrity: the same recorded evidence state and policy reproduce the same decision.</p>
+                    <p>Decision Replay checks deterministic integrity: give the same recorded evidence to the same policy, and Nexora should reach the same decision again.</p>
                   </div>
                   <button
                     className="replay-trigger"
@@ -574,7 +574,7 @@ export default function App() {
                           <p className="eyebrow">07 · DECISION REPLAY &middot; INTEGRITY PROOF</p>
                           <h3>
                             {invResult.decisionReplay.validation.matches
-                              ? "Deterministic Integrity Verified: identical inputs → identical decision."
+                              ? "Deterministic Integrity Verified: recorded and recomputed decisions agree."
                               : "Integrity Mismatch: recorded decision differs from recalculation."}
                           </h3>
                         </div>
@@ -908,7 +908,7 @@ export default function App() {
                 <div className="live-step">
                   <div className="replay-trail-callout">
                     <strong>EVERY DECISION LEAVES A TRAIL</strong>
-                    <p>Decision Replay verifies deterministic decision integrity: the same recorded evidence state and policy reproduce the same decision.</p>
+                    <p>Decision Replay checks deterministic integrity: give the same recorded evidence to the same policy, and Nexora should reach the same decision again.</p>
                   </div>
                   <button
                     className="replay-trigger"
@@ -926,7 +926,7 @@ export default function App() {
                           <p className="eyebrow">08 · DECISION REPLAY &middot; INTEGRITY PROOF</p>
                           <h3>
                             {liveResult.decisionReplay.validation.matches
-                              ? "Deterministic Integrity Verified: identical inputs → identical decision."
+                              ? "Deterministic Integrity Verified: recorded and recomputed decisions agree."
                               : "Integrity Mismatch: recorded decision differs from recalculation."}
                           </h3>
                         </div>
@@ -973,7 +973,7 @@ export default function App() {
             <p className="eyebrow">QUESTION-TO-EVIDENCE ORCHESTRATION ARCHITECTURE</p>
             <h2>How Nexora Turns Questions into Bounded Decisions</h2>
           </div>
-          <p>Transparent intelligence-to-decision pipeline from user question to tamper-evident decision replay.</p>
+          <p>See how Nexora moves from a question to evidence, a decision, and a complete audit trail.</p>
         </div>
         <div className="pipeline-grid">
           <div className="pipeline-step">
@@ -1028,18 +1028,18 @@ export default function App() {
         <div className="contradiction-card">
           <div className="contradiction-header">
             <span className="tag-warning">KEY HACKATHON FINDINGS</span>
-            <h2>The Contradiction Case: High Confidence ≠ Correct Evidence</h2>
+            <h2>The Contradiction Case: When 100% Confidence Is Wrong</h2>
             <p className="tagline">Why evidence-aware decision control matters for autonomous agents.</p>
           </div>
           <div className="contradiction-story">
             <p>
-              During live Telegraph smoke, TxLens miner <code>9002</code> was queried for an on-chain transaction. The miner reported <strong>status: not_found</strong> with <strong>100% confidence (1.0)</strong>.
+              A real Telegraph test exposed the problem Nexora is designed to handle.
             </p>
             <p>
-              Independent verification against Base Sepolia proved the transaction (<code>0xcd9a...</code>) independently existed in block <code>46,306,603</code>.
+              TxLens miner <code>9002</code> reported that an on-chain transaction was not found with <strong>100% confidence (1.0)</strong>. But independent verification showed that transaction <code>0xcd9a...</code> existed on Base Sepolia in block <code>46,306,603</code>.
             </p>
             <p>
-              <strong>Nexora’s Action:</strong> Nexora preserved the miner's reported finding and confidence in its evidence assessment rather than allowing the confidence score to override independently established contradictory evidence. Nexora classified evidence quality as <strong>CONTRADICTED</strong>, routing the action to safe <strong>REVIEW</strong>.
+              <strong>Nexora’s Action:</strong> Nexora did not let the confidence score settle the question. It marked the evidence as <strong>CONTRADICTED</strong> and safely sent the action to <strong>REVIEW</strong>.
             </p>
           </div>
           <div className="contradiction-comparison-grid">
@@ -1070,7 +1070,10 @@ export default function App() {
             <span className="learning-tag">PRODUCTION LEARNING · PRE-PAYMENT CAPABILITY GATE</span>
             <h4>A top-ranked miner can still be unsuitable for a specific decision.</h4>
             <p>
-              In production, Nexora discovered that a higher-ranked ONCHAIN_TX_LOOKUP provider's declared output could not satisfy the transaction evidence requirement. Nexora now filters for evidence capability before payment, then preserves Telegraph ranking among capable providers.
+              Another production test exposed a different problem. Nexora selected ChainSight for an onchain lookup, but the response did not contain the transaction evidence the decision actually needed. We had paid for intelligence that couldn't answer the question well enough.
+            </p>
+            <p>
+              That led to the Evidence Capability Gate. Now Nexora checks whether a miner's declared output can provide the required evidence before spending USDC. Among the miners that can, Telegraph ranking still decides which provider comes first.
             </p>
             <p className="learning-outcome">
               The final controlled production run selected <strong>TxLens</strong> through this process and returned: <code>USABLE</code> evidence, <code>SUFFICIENT</code> coverage, and a <code>SUPPORTED</code> investigation conclusion.
@@ -1135,7 +1138,7 @@ export default function App() {
             <h2>WHAT CAN NEXORA HELP DECIDE?</h2>
           </div>
           <p>
-            Nexora sits between an agent's proposed action or user question and execution. It gathers the intelligence required, checks whether that evidence is reliable enough, then returns a bounded conclusion with a complete decision trace.
+            Nexora sits between a question and an action. It works out what needs to be checked, gets the relevant intelligence from Telegraph miners, looks for missing or conflicting evidence, and decides whether there is enough information to move forward. Every decision leaves a Decision Replay showing how Nexora got there.
           </p>
         </div>
         <div className="sample-questions-grid">
@@ -1183,7 +1186,7 @@ export default function App() {
             <span className="why-num">02</span>
             <h3>CAPABILITY BEFORE PAYMENT</h3>
             <p>
-              Nexora checks whether a miner's declared contract can satisfy the required evidence before USDC is spent, while preserving Telegraph ranking among capable providers.
+              Nexora checks whether a miner can provide the evidence the decision actually needs before paying it, while preserving Telegraph ranking among capable providers.
             </p>
           </div>
           <div className="why-card">
@@ -1217,7 +1220,7 @@ export default function App() {
           <details className="faq-item">
             <summary className="faq-question">What is Nexora?</summary>
             <div className="faq-answer">
-              Nexora is an intelligence-to-decision layer for autonomous agents and users. A user or agent provides a question or proposed action. Nexora determines what evidence is needed, routes those evidence questions through relevant Telegraph miners, checks the quality and consistency of the responses, then returns a bounded conclusion with a complete Decision Replay audit trace.
+              You give Nexora a question or proposed action. It works out what evidence is needed, gets relevant intelligence from Telegraph miners, checks the quality of what comes back, and applies its decision rules to return a clear result with a complete Decision Replay audit trail.
             </div>
           </details>
           <details className="faq-item">
@@ -1279,7 +1282,7 @@ export default function App() {
           <details className="faq-item">
             <summary className="faq-question">Does Nexora move money or execute a user’s transaction?</summary>
             <div className="faq-answer">
-              No. Nexora controls authorization decisions. The reference agent records whether an action is authorized, held for review, or rejected. Nexora’s only payments are bounded x402 payments used to obtain Telegraph intelligence.
+              No. Nexora decides whether an agent has enough evidence to proceed. It does not transfer supplier funds or execute arbitrary transactions. Its x402 payments are only used to obtain Telegraph intelligence.
             </div>
           </details>
           <details className="faq-item">
