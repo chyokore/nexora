@@ -2089,11 +2089,62 @@ footer {
   border-radius: 8px;
 }
 
+
 .inv-section-title {
   font: 700 0.65rem ui-monospace, monospace;
   color: var(--mint);
   letter-spacing: 0.1em;
   margin: 0;
+}
+
+/* ===================================================================
+   Proof Strip & Production Learning Box
+   =================================================================== */
+.proof-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  font: 700 0.68rem ui-monospace, monospace;
+  color: var(--mint);
+  letter-spacing: 0.08em;
+  margin-top: 24px;
+  padding: 10px 16px;
+  background: var(--mint-dim);
+  border: 1px solid var(--mint);
+  border-radius: 4px;
+}
+.proof-strip .dot { color: var(--muted); }
+
+.production-learning-box {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--mint);
+  padding: 20px;
+  border-radius: 4px;
+  margin: 24px 0 20px;
+}
+.learning-tag {
+  font: 700 0.62rem ui-monospace, monospace;
+  color: var(--mint);
+  letter-spacing: 0.1em;
+  display: block;
+  margin-bottom: 6px;
+}
+.production-learning-box h4 {
+  font-size: 0.95rem;
+  color: var(--text);
+  margin: 0 0 8px;
+}
+.production-learning-box p {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin: 0 0 8px;
+}
+.production-learning-box p.learning-outcome {
+  margin: 0;
+  color: var(--text);
 }
 
 

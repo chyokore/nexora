@@ -188,7 +188,7 @@ describe("judge-facing experience", () => {
     mockApi("ALLOW");
     render(<App />);
     expect(screen.getByRole("heading", { name: /Verify Intelligence.*Bound Action/ })).toBeVisible();
-    expect(screen.getByText(/Bring Nexora a question, claim, link, or onchain reference/)).toBeVisible();
+    expect(screen.getByText(/Intelligence is not a decision/)).toBeVisible();
   });
 
   it("renders the Decision Workspace section and mode tabs", () => {
@@ -367,8 +367,8 @@ describe("judge-facing experience", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: "WHY NEXORA IS DIFFERENT", level: 2 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "INTELLIGENCE IS NOT A DECISION", level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "EVIDENCE KEEPS ITS OWN QUALITY", level: 3 })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "THE AGENT MUST OBEY THE RESULT", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "CAPABILITY BEFORE PAYMENT", level: 3 })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "UNCERTAINTY BOUNDS ACTION", level: 3 })).toBeInTheDocument();
   });
 
   it("renders FAQ section with accessible questions and review safety banner", () => {

@@ -206,9 +206,9 @@ export default function App() {
             Verify Intelligence.<br /><em>Bound Action.</em>
           </h1>
           <p className="lede">
-            <strong>Bring Nexora a question, claim, link, or onchain reference.</strong>
+            <strong>Intelligence is not a decision.</strong>
             <br />
-            <strong>Nexora determines what must be verified, obtains relevant intelligence through Telegraph, evaluates evidence quality and disagreement, then returns a bounded conclusion with a complete decision trace.</strong>
+            <strong>Nexora determines what evidence an autonomous agent needs, finds Telegraph miners capable of providing it, evaluates the returned intelligence, and produces a bounded conclusion through deterministic policy.</strong>
           </p>
           <div className="value-pillars">
             <div className="pillar">
@@ -230,6 +230,17 @@ export default function App() {
           <div className="hero-actions">
             <a href="#workspace" className="btn-primary">Try Decision Workspace</a>
             <a href="#contradiction" className="btn-secondary">The Contradiction Case</a>
+          </div>
+          <div className="proof-strip">
+            <span>REAL TELEGRAPH MINERS</span>
+            <span className="dot">&bull;</span>
+            <span>REAL x402 SETTLEMENTS</span>
+            <span className="dot">&bull;</span>
+            <span>CAPABILITY-AWARE ROUTING</span>
+            <span className="dot">&bull;</span>
+            <span>DETERMINISTIC POLICY</span>
+            <span className="dot">&bull;</span>
+            <span>DECISION REPLAY</span>
           </div>
         </div>
         <div className="hero-side">
@@ -273,7 +284,7 @@ export default function App() {
             onClick={() => { setActiveMode("INVESTIGATE"); setInvResult(null); setInvError(""); }}
           >
             <span className="mode-tab-label">INVESTIGATE</span>
-            <small>Claims · URLs · Onchain references</small>
+            <small>&ldquo;Is the available evidence strong enough to support this conclusion?&rdquo;</small>
           </button>
           <button
             role="tab"
@@ -283,7 +294,7 @@ export default function App() {
             onClick={() => { setActiveMode("AUTHORIZE_ACTION"); setLiveResult(null); setLiveError(""); }}
           >
             <span className="mode-tab-label">AUTHORIZE ACTION</span>
-            <small>Autonomous agent payment decisions</small>
+            <small>&ldquo;Does the agent have enough reliable evidence to proceed?&rdquo;</small>
           </button>
         </div>
 
@@ -545,7 +556,7 @@ export default function App() {
                 <div className="live-step">
                   <div className="replay-trail-callout">
                     <strong>EVERY DECISION LEAVES A TRAIL</strong>
-                    <p>Decision Replay reconstructs what was asked, what was verified, how each piece of evidence was judged, and how the verdict was reached.</p>
+                    <p>Decision Replay verifies deterministic decision integrity: the same recorded evidence state and policy reproduce the same decision.</p>
                   </div>
                   <button
                     className="replay-trigger"
@@ -897,7 +908,7 @@ export default function App() {
                 <div className="live-step">
                   <div className="replay-trail-callout">
                     <strong>EVERY DECISION LEAVES A TRAIL</strong>
-                    <p>Decision Replay reconstructs what the agent proposed, what intelligence Nexora requested, what evidence returned, how that evidence was judged, and why the agent ultimately proceeded or stopped.</p>
+                    <p>Decision Replay verifies deterministic decision integrity: the same recorded evidence state and policy reproduce the same decision.</p>
                   </div>
                   <button
                     className="replay-trigger"
@@ -976,22 +987,27 @@ export default function App() {
             <p>Planner generates explicit evidence questions & explains why each matters.</p>
           </div>
           <div className="pipeline-step">
-            <span className="step-badge">03 TELEGRAPH</span>
-            <h4>Intelligence Routing</h4>
-            <p>Discovers registry, selects compatible Telegraph miners, & prepares requests.</p>
+            <span className="step-badge">03 CAPABILITY</span>
+            <h4>Evidence Capability Gate</h4>
+            <p>Checks whether a miner's declared output can satisfy the required evidence before USDC is spent.</p>
           </div>
           <div className="pipeline-step">
-            <span className="step-badge">04 VERIFICATION</span>
+            <span className="step-badge">04 TELEGRAPH</span>
+            <h4>Telegraph Ranking + x402</h4>
+            <p>Selects the highest-ranked capable provider and acquires intelligence through the existing paid Telegraph flow.</p>
+          </div>
+          <div className="pipeline-step">
+            <span className="step-badge">05 VERIFICATION</span>
             <h4>Quality & Conflict</h4>
             <p>Measures structural validity, missing items, & cross-source contradictions.</p>
           </div>
           <div className="pipeline-step">
-            <span className="step-badge">05 POLICY</span>
+            <span className="step-badge">06 POLICY</span>
             <h4>Deterministic Policy</h4>
             <p>Evaluates mandatory rules without averaging provider confidence.</p>
           </div>
           <div className="pipeline-step highlight">
-            <span className="step-badge">06 OUTCOME</span>
+            <span className="step-badge">07 OUTCOME</span>
             <h4>Bounded Conclusion</h4>
             <div className="dual-outcome-box">
               <div className="outcome-group">
@@ -1007,23 +1023,23 @@ export default function App() {
         </div>
       </section>
 
-      {/* The Contradiction Case Spotlight */}
+      {/* The Contradiction Case & Production Learning Spotlight */}
       <section className="contradiction-section" id="contradiction">
         <div className="contradiction-card">
           <div className="contradiction-header">
-            <span className="tag-warning">KEY HACKATHON FINDING</span>
+            <span className="tag-warning">KEY HACKATHON FINDINGS</span>
             <h2>The Contradiction Case: High Confidence ≠ Correct Evidence</h2>
             <p className="tagline">Why evidence-aware decision control matters for autonomous agents.</p>
           </div>
           <div className="contradiction-story">
             <p>
-              During Phase 5D live Telegraph smoke, TxLens miner <code>9002</code> was queried for an on-chain transaction. The miner returned <strong>status: not_found</strong> with <strong>100% confidence (1.0)</strong>.
+              During live Telegraph smoke, TxLens miner <code>9002</code> was queried for an on-chain transaction. The miner reported <strong>status: not_found</strong> with <strong>100% confidence (1.0)</strong>.
             </p>
             <p>
-              Independent verification against Base Sepolia proved the transaction (<code>0xcd9a...</code>) independently existed and succeeded in block <code>46,306,603</code>.
+              Independent verification against Base Sepolia proved the transaction (<code>0xcd9a...</code>) independently existed in block <code>46,306,603</code>.
             </p>
             <p>
-              <strong>Nexora’s Action:</strong> Rather than blindly trusting the 100% confidence score, Nexora preserved the miner’s raw report verbatim and classified evidence quality as <strong>CONTRADICTED</strong>, routing the action to safe <strong>REVIEW</strong>.
+              <strong>Nexora’s Action:</strong> Nexora preserved the miner's reported finding and confidence in its evidence assessment rather than allowing the confidence score to override independently established contradictory evidence. Nexora classified evidence quality as <strong>CONTRADICTED</strong>, routing the action to safe <strong>REVIEW</strong>.
             </p>
           </div>
           <div className="contradiction-comparison-grid">
@@ -1048,6 +1064,19 @@ export default function App() {
               <small>Decision: REVIEW</small>
             </div>
           </div>
+
+          {/* Production Learning Card */}
+          <div className="production-learning-box">
+            <span className="learning-tag">PRODUCTION LEARNING · PRE-PAYMENT CAPABILITY GATE</span>
+            <h4>A top-ranked miner can still be unsuitable for a specific decision.</h4>
+            <p>
+              In production, Nexora discovered that a higher-ranked ONCHAIN_TX_LOOKUP provider's declared output could not satisfy the transaction evidence requirement. Nexora now filters for evidence capability before payment, then preserves Telegraph ranking among capable providers.
+            </p>
+            <p className="learning-outcome">
+              The final controlled production run selected <strong>TxLens</strong> through this process and returned: <code>USABLE</code> evidence, <code>SUFFICIENT</code> coverage, and a <code>SUPPORTED</code> investigation conclusion.
+            </p>
+          </div>
+
           <div className="contradiction-action">
             <button type="button" onClick={loadContradictionScenario} className="btn-load-scenario">
               Load Contradiction Scenario in Decision Workspace <b>↓</b>
@@ -1064,7 +1093,7 @@ export default function App() {
               <p className="eyebrow">FREE REGISTRY INSPECTION</p>
               <h2>Live Telegraph Discovery Inspector</h2>
             </div>
-            <p>Nexora reads the live Telegraph miner registry without spending USDC.</p>
+            <p>Nexora reads the live Telegraph miner registry and filters for capability before spending USDC.</p>
           </div>
           <div className="discovery-meta-bar">
             <span><b>{discovery.totalRegistrations}</b> Miners Registered</span>
@@ -1147,21 +1176,21 @@ export default function App() {
             <span className="why-num">01</span>
             <h3>INTELLIGENCE IS NOT A DECISION</h3>
             <p>
-              A miner can return an answer with high confidence and the evidence can still be incomplete, contradicted, or unsuitable for the action.
+              A high-confidence answer can still be incomplete, contradicted, or unsuitable for the action.
             </p>
           </div>
           <div className="why-card">
             <span className="why-num">02</span>
-            <h3>EVIDENCE KEEPS ITS OWN QUALITY</h3>
+            <h3>CAPABILITY BEFORE PAYMENT</h3>
             <p>
-              Nexora does not average unrelated confidence scores into one artificial trust number. Each required piece of evidence is evaluated on its own.
+              Nexora checks whether a miner's declared contract can satisfy the required evidence before USDC is spent, while preserving Telegraph ranking among capable providers.
             </p>
           </div>
           <div className="why-card">
             <span className="why-num">03</span>
-            <h3>THE AGENT MUST OBEY THE RESULT</h3>
+            <h3>UNCERTAINTY BOUNDS ACTION</h3>
             <p>
-              ALLOW lets the reference agent proceed. REVIEW holds the action. BLOCK rejects it. Every decision can be inspected through Decision Replay.
+              Missing, insufficient, or contradicted required evidence cannot silently become authorization.
             </p>
           </div>
         </div>
