@@ -1292,9 +1292,9 @@ export default function App() {
             </div>
           </details>
           <details className="faq-item">
-            <summary className="faq-question">Can Nexora work with links, images, documents, or videos?</summary>
+            <summary className="faq-question">Can Nexora analyze images, documents, or videos?</summary>
             <div className="faq-answer">
-              Nexora’s architecture is being designed so decision questions can originate from richer evidence such as URLs, documents, images, and video-derived claims. Nexora can then turn the relevant information into verifiable evidence questions and route them through compatible intelligence sources.
+              Right now, Nexora works with questions, text or claims, URLs, and Base Sepolia onchain references. Direct image, document, video, and audio analysis is not part of the current production workspace. Those are planned extensions, not current features.
             </div>
           </details>
         </div>

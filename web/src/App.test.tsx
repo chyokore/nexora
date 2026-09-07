@@ -388,7 +388,7 @@ describe("judge-facing experience", () => {
     expect(screen.getByText("What is Decision Replay?")).toBeInTheDocument();
     expect(screen.getByText("Does Nexora move money or execute a user’s transaction?")).toBeInTheDocument();
     expect(screen.getByText("Why does Nexora use Telegraph?")).toBeInTheDocument();
-    expect(screen.getByText("Can Nexora work with links, images, documents, or videos?")).toBeInTheDocument();
+    expect(screen.getByText("Can Nexora analyze images, documents, or videos?")).toBeInTheDocument();
   });
 
   it("renders Decision Replay trail explanation", async () => {
