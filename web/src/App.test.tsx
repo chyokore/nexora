@@ -469,4 +469,109 @@ describe("judge-facing experience", () => {
     expect(screen.getByText("abc123fingerprint")).toBeInTheDocument();
     expect(screen.getByText("EVERY DECISION LEAVES A TRAIL")).toBeInTheDocument();
   });
+
+  it("renders direct answer YES for binary investigation question with SUPPORTED verdict", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes("/v1/discovery")) return { ok: true, json: async () => mockDiscovery };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            runId: "run:inv-binary-1",
+            question: "Is this transaction valid on chain?",
+            verdict: "SUPPORTED",
+            verdictLabel: "Evidence satisfied",
+            verdictSupport: "Verified on Base Sepolia",
+            investigationPlan: { txHashTarget: "0xcd9a...", requirements: [] },
+            evidenceQuestions: [],
+            acquiredIntelligence: [
+              {
+                intent: "ONCHAIN_TX_LOOKUP",
+                minerId: "9002",
+                minerName: "TxLens",
+                rank: 1,
+                method: "GET",
+                endpoint: "/check-tx",
+                advertisedPriceMicroUsdc: 10000,
+                logicalCallId: "call-1",
+                outcome: { status: "acquired" },
+              },
+            ],
+            evidenceAssessments: [],
+            unsupportedAspects: [],
+            settlementProvenance: [],
+            totalSettledMicroUsdc: 10000,
+            paidCallCount: 1,
+            decisionReplay: {
+              replayId: "sha256:test",
+              decisionId: "decision:test",
+              fingerprint: "abc123fingerprint",
+              validation: { status: "VERIFIED", matches: true },
+              timeline: [],
+            },
+          }),
+        };
+      })
+    );
+
+    render(<App />);
+    const input = document.getElementById("inv-question")!;
+    fireEvent.change(input, { target: { value: "Is this transaction valid on chain?" } });
+    fireEvent.click(screen.getByRole("button", { name: /Analyze with Nexora/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/YOUR ANSWER/i)).toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "YES", level: 3 })).toBeInTheDocument();
+      expect(screen.getByText(/Evidence verdict/i)).toBeInTheDocument();
+      expect(screen.getAllByText("SUPPORTED").length).toBeGreaterThan(0);
+    });
+  });
+
+  it("does not render direct answer badge for non-binary investigation question", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async (url: string) => {
+        if (String(url).includes("/v1/discovery")) return { ok: true, json: async () => mockDiscovery };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            runId: "run:inv-nonbinary-1",
+            question: "What happened in this transaction?",
+            verdict: "SUPPORTED",
+            verdictLabel: "Evidence satisfied",
+            verdictSupport: "Verified on Base Sepolia",
+            investigationPlan: { requirements: [] },
+            evidenceQuestions: [],
+            acquiredIntelligence: [],
+            evidenceAssessments: [],
+            unsupportedAspects: [],
+            settlementProvenance: [],
+            totalSettledMicroUsdc: 0,
+            paidCallCount: 0,
+            decisionReplay: {
+              replayId: "sha256:test",
+              decisionId: "decision:test",
+              fingerprint: "abc123fingerprint",
+              validation: { status: "VERIFIED", matches: true },
+              timeline: [],
+            },
+          }),
+        };
+      })
+    );
+
+    render(<App />);
+    const input = document.getElementById("inv-question")!;
+    fireEvent.change(input, { target: { value: "What happened in this transaction?" } });
+    fireEvent.click(screen.getByRole("button", { name: /Analyze with Nexora/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText(/NEXORA CONCLUSION/i)).toBeInTheDocument();
+      expect(screen.queryByText(/YOUR ANSWER/i)).not.toBeInTheDocument();
+      expect(screen.getByRole("heading", { name: "SUPPORTED", level: 3 })).toBeInTheDocument();
+    });
+  });
 });

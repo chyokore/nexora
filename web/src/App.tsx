@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { fetchDiscovery, fetchReceipt, runInvestigation, runLiveDecision } from "./api";
+import { deriveDirectAnswer } from "./answers";
 import type { DecisionMode, DiscoveryResponse, InvestigationRunResult, LiveDecisionRunResult, PersistedReceipt, ProposedAction } from "./contracts";
 
 const readable = (value: string) =>
@@ -513,14 +514,35 @@ export default function App() {
                 )}
 
                 {/* Step 5: NEXORA CONCLUSION */}
-                <div className={`live-decision-banner ${invResult.verdict.toLowerCase()}`}>
-                  <div className="live-step">
-                    <p className="eyebrow">05 · NEXORA CONCLUSION</p>
-                    <h3 className="decision-value">{invResult.verdict}</h3>
-                    <p className="decision-explanation">{invResult.verdictLabel}</p>
-                    <p className="decision-explanation">{invResult.verdictSupport}</p>
-                  </div>
-                </div>
+                {(() => {
+                  const directAnswer = deriveDirectAnswer(invResult.question, invResult.verdict, invResult);
+                  return (
+                    <div className={`live-decision-banner ${invResult.verdict.toLowerCase()}`}>
+                      <div className="live-step">
+                        {directAnswer ? (
+                          <>
+                            <p className="eyebrow">05 · YOUR ANSWER</p>
+                            <h3 className="decision-value direct-answer-value">{directAnswer.answer}</h3>
+                            <p className="decision-explanation direct-answer-text">{directAnswer.explanation}</p>
+                            <div className="verdict-sub-box">
+                              <span className="verdict-sub-label">Evidence verdict:</span>
+                              <strong className="verdict-sub-value">{invResult.verdict}</strong>
+                            </div>
+                            <p className="decision-explanation">{invResult.verdictLabel}</p>
+                            <p className="decision-explanation">{invResult.verdictSupport}</p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="eyebrow">05 · NEXORA CONCLUSION</p>
+                            <h3 className="decision-value">{invResult.verdict}</h3>
+                            <p className="decision-explanation">{invResult.verdictLabel}</p>
+                            <p className="decision-explanation">{invResult.verdictSupport}</p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {invResult.unsupportedAspects.length > 0 && (
                   <div className="live-step">
